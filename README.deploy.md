@@ -93,6 +93,15 @@ curl -X POST https://seu-dominio.com/run \
 
 ## Solução de Problemas
 
+### Problemas com Nixpacks e pacotes não encontrados
+
+Se você encontrar erros como `undefined variable 'nome-do-pacote'` durante o build com Nixpacks:
+
+1. Verifique se o nome do pacote está correto e existe no repositório Nix
+2. Para problemas com o pacote `xvfb`, use apenas `xvfb-run` que já inclui a funcionalidade necessária
+3. Se necessário, edite o arquivo `nixpacks.toml` e remova os pacotes que estão causando problemas
+4. **Versão alternativa do nixpacks.toml**: Se continuar tendo problemas, renomeie o arquivo `nixpacks.toml.alternative` para `nixpacks.toml` e tente novamente. Esta versão usa uma abordagem mais direta para instalar os pacotes necessários.
+
 ### Problemas com Chromium
 
 Se houver problemas com o Chrome/Chromium:
@@ -111,8 +120,8 @@ Se o navegador não iniciar corretamente, tente:
 
 ## Usando Docker em vez de Nixpacks
 
-Se preferir usar Docker em vez do Nixpacks:
+Se você estiver enfrentando muitos problemas com Nixpacks, considere usar o Docker:
 
 1. No Easypanel, escolha "Custom" como tipo de projeto
 2. Em "Build settings", selecione **Dockerfile** como builder
-3. O sistema usará o Dockerfile fornecido no repositório 
+3. O sistema usará o Dockerfile fornecido no repositório, que inclui todas as dependências necessárias 

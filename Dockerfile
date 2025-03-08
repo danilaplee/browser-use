@@ -24,6 +24,10 @@ RUN apt-get update && apt-get install -y \
     fonts-liberation \
     fonts-noto-color-emoji \
     fonts-noto-cjk \
+    xvfb-run \
+    gnumake \
+    gcc \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Instalar o Chrome
@@ -44,6 +48,9 @@ RUN chmod +x start.sh
 
 # Instalar dependências Python
 RUN pip install --no-cache-dir -e .
+
+# Instalar pacotes Python adicionais necessários
+RUN pip install --no-cache-dir fastapi uvicorn
 
 # Configurar Playwright
 ENV PLAYWRIGHT_BROWSERS_PATH=/tmp/playwright-browsers

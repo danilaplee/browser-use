@@ -7,24 +7,14 @@ export PLAYWRIGHT_BROWSERS_PATH=/tmp/playwright-browsers
 echo "Verificando instalação dos navegadores Playwright..."
 python -m playwright install chromium
 
-# Verificar se Xvfb está instalado
-if command -v Xvfb &> /dev/null; then
-    echo "Iniciando Xvfb..."
-    Xvfb :99 -screen 0 1280x1024x24 > /dev/null 2>&1 &
-    export DISPLAY=:99
-    
-    # Aguardar Xvfb iniciar
-    sleep 2
-fi
-
-# Configurar para usar chromium em modo headless
-export BROWSER_USE_HEADLESS=true
-
-# Iniciar o servidor com Xvfb se disponível
-if [ -n "$DISPLAY" ]; then
-    echo "Iniciando servidor com display virtual: $DISPLAY"
-    exec python server.py
+# Verificar se xvfb-run está disponível
+if command -v xvfb-run &> /dev/null; then
+    echo "Iniciando servidor com xvfb-run..."
+    # Iniciar o servidor usando xvfb-run
+    exec xvfb-run --server-args="-screen 0 1280x1024x24" python server.py
 else
-    echo "Iniciando servidor em modo headless puro"
+    # Configurar para usar chromium em modo headless puro
+    echo "xvfb-run não disponível, iniciando em modo headless puro"
+    export BROWSER_USE_HEADLESS=true
     exec python server.py
 fi 
