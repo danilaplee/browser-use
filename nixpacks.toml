@@ -1,0 +1,17 @@
+[phases.setup]
+nixPkgs = ["chromium", "xvfb-run", "wget", "gnumake", "gcc", "git", "xvfb"]
+
+[phases.install]
+cmds = [
+  "python -m pip install -e .",
+  "chmod +x start.sh"
+]
+
+[phases.build]
+cmds = [
+  "playwright install chromium",
+  "echo 'Build phase completed'"
+]
+
+[start]
+cmd = "./start.sh" 
