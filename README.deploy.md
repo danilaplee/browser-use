@@ -156,13 +156,23 @@ Se você encontrar erros como `Unable to locate package xvfb-run` ou `Unable to 
 
 ### Problemas com o Python
 
-Se você encontrar erros como `python: command not found`:
+Se você encontrar erros como `python: command not found` ou `ModuleNotFoundError: No module named 'X'`:
 
 1. **Usar o Dockerfile**: Recomendamos fortemente usar o Dockerfile fornecido, que já está configurado com todas as dependências necessárias, incluindo a versão correta do Python.
 
-2. **Ajustar o nixpacks.toml**: Se preferir usar Nixpacks, certifique-se de que o arquivo `nixpacks.toml` inclui `python311` na lista de `nixPkgs` e que todos os comandos usam `python3` em vez de `python`.
+2. **Dependências do Langchain**: O servidor requer várias dependências do Langchain, incluindo:
+   - `langchain-google-genai` - Para integração com o Google Generative AI
+   - Outras dependências que podem ser listadas no arquivo `requirements.txt` ou `pyproject.toml`
 
-3. **Verificar variáveis de ambiente**: Certifique-se de que o Python está no PATH do sistema.
+3. **Instalar dependências manualmente**: Se estiver usando um container existente, você pode instalar as dependências faltantes:
+   ```bash
+   pip install langchain-google-genai
+   ```
+
+4. **Verificar erros de inicialização**: Se o servidor não mostrar logs após a inicialização, verifique erros de importação executando o script manualmente:
+   ```bash
+   python3 server.py
+   ```
 
 ### Problemas com Nixpacks e pacotes não encontrados
 

@@ -37,6 +37,7 @@ RUN apt-get update && apt-get install -y \
     git \
     procps \
     dbus \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Criar script xvfb-run se não estiver disponível
@@ -68,7 +69,7 @@ RUN python -m pip install --upgrade pip setuptools wheel
 RUN pip install --no-cache-dir -e .
 
 # Instalar pacotes Python adicionais necessários
-RUN pip install --no-cache-dir fastapi uvicorn
+RUN pip install --no-cache-dir fastapi uvicorn langchain-google-genai
 
 # Pré-instalar Playwright durante o build com tratamento de erros
 RUN python -m pip install playwright && \
