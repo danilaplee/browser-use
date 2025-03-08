@@ -6,6 +6,12 @@ export BROWSER_USE_DEBUG=true  # Ativar modo de debug para mais logs
 
 echo "Iniciando script de inicialização com timeout de segurança..."
 
+# Verificar se GOOGLE_API_KEY está definida
+if [ -z "$GOOGLE_API_KEY" ]; then
+    echo "⚠️ AVISO: GOOGLE_API_KEY não está definida. Isso pode causar falhas se o servidor usar langchain_google_genai."
+    echo "Para solucionar, defina a variável GOOGLE_API_KEY nas configurações do ambiente."
+fi
+
 # Função para executar comando com timeout
 run_with_timeout() {
     local timeout=$1
@@ -34,6 +40,14 @@ run_with_timeout() {
     return $?
 }
 
+# Verificar se devemos usar modo headless
+if [ "$BROWSER_USE_HEADLESS" = "true" ]; then
+    echo "Modo headless ativado via variável de ambiente. Ignorando Xvfb."
+    echo "Iniciando servidor em modo headless puro..."
+    exec python3 server.py
+    exit 0
+fi
+
 # Garantir que temos acesso ao Xvfb
 if [ ! -f /usr/bin/Xvfb ]; then
     echo "Xvfb não está instalado. Tentando instalar..."
@@ -50,14 +64,24 @@ if [ ! -d "$PLAYWRIGHT_BROWSERS_PATH/chromium-" ]; then
     run_with_timeout 120 "python3 -m playwright install chromium" "Instalando chromium"
     
     if [ $? -ne 0 ]; then
-        echo "Timeout ou erro na instalação do Playwright. Continuando mesmo assim..."
-        # Definir modo headless para tentar funcionar mesmo sem ter instalado corretamente
+        echo "Timeout ou erro na instalação do Playwright. Usando modo headless puro."
         export BROWSER_USE_HEADLESS=true
+        exec python3 server.py
+        exit 0
     else
         echo "Instalação do Playwright concluída com sucesso!"
     fi
 else
     echo "Navegadores Playwright já instalados em $PLAYWRIGHT_BROWSERS_PATH"
+fi
+
+# Testar se o Xvfb funciona corretamente
+Xvfb -help >/dev/null 2>&1
+if [ $? -ne 0 ]; then
+    echo "Erro ao executar Xvfb. Usando modo headless puro."
+    export BROWSER_USE_HEADLESS=true
+    exec python3 server.py
+    exit 0
 fi
 
 # Verificar se xvfb-run está disponível e funcionando
@@ -71,26 +95,17 @@ if command -v xvfb-run &> /dev/null; then
         echo "xvfb-run está funcionando corretamente."
         # Iniciar o servidor usando xvfb-run com timeout de segurança
         export DISPLAY=:99
+        echo "Iniciando servidor..."
         exec xvfb-run --server-args="-screen 0 1280x1024x24" python3 server.py
+        exit 0
     else
-        echo "xvfb-run falhou no teste. Tentando método alternativo..."
+        echo "xvfb-run falhou no teste. Usando modo headless puro."
+        export BROWSER_USE_HEADLESS=true
+        exec python3 server.py
+        exit 0
     fi
 fi
 
-echo "Usando método alternativo para iniciar Xvfb..."
-# Iniciar Xvfb manualmente
-Xvfb :99 -screen 0 1280x1024x24 > /dev/null 2>&1 &
-export DISPLAY=:99
-
-# Aguardar Xvfb iniciar
-sleep 2
-
-# Verificar se Xvfb iniciou corretamente
-if command -v xdpyinfo &> /dev/null && xdpyinfo -display :99 &> /dev/null; then
-    echo "Servidor X virtual iniciado com sucesso. Iniciando aplicação..."
-    exec python3 server.py
-else
-    echo "Falha ao iniciar servidor X virtual. Usando modo headless puro."
-    export BROWSER_USE_HEADLESS=true
-    exec python3 server.py
-fi 
+echo "Nenhum método de inicialização X virtual funcionou. Usando modo headless puro."
+export BROWSER_USE_HEADLESS=true
+exec python3 server.py 

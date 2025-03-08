@@ -52,7 +52,9 @@ Configure as variáveis de ambiente necessárias:
 2. Adicione todas as variáveis do seu arquivo `.env` 
 3. Certifique-se de adicionar pelo menos:
    - `OPENAI_API_KEY` ou outra API key necessária para o modelo de linguagem
+   - `GOOGLE_API_KEY` - **Obrigatória** para funcionar com o Google Generative AI
    - `PORT` (definido como 8000)
+   - `BROWSER_USE_HEADLESS=true` - Recomendado para maior estabilidade em ambiente de produção
 
 ### 6. Deploy do Projeto
 

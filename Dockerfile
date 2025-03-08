@@ -6,6 +6,8 @@ ENV PYTHONUNBUFFERED=1
 ENV PATH="/root/.local/bin:$PATH"
 ENV BROWSER_USE_DEBUG=true
 ENV PLAYWRIGHT_BROWSERS_PATH=/tmp/playwright-browsers
+# NOTA: GOOGLE_API_KEY deve ser definida nas configurações do ambiente de deploy
+# ENV GOOGLE_API_KEY=""
 
 # Instalar dependências do sistema
 RUN apt-get update && apt-get install -y \
