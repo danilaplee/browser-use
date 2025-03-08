@@ -4,6 +4,8 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PATH="/root/.local/bin:$PATH"
+ENV BROWSER_USE_DEBUG=true
+ENV PLAYWRIGHT_BROWSERS_PATH=/tmp/playwright-browsers
 
 # Instalar dependências do sistema
 RUN apt-get update && apt-get install -y \
@@ -33,11 +35,13 @@ RUN apt-get update && apt-get install -y \
     make \
     gcc \
     git \
+    procps \
+    dbus \
     && rm -rf /var/lib/apt/lists/*
 
 # Criar script xvfb-run se não estiver disponível
 RUN if [ ! -f /usr/bin/xvfb-run ]; then \
-    echo '#!/bin/bash\nXvfb :99 -screen 0 1280x1024x24 > /dev/null 2>&1 &\nDISPLAY=:99 "$@"' > /usr/bin/xvfb-run && \
+    echo '#!/bin/bash\nXvfb :99 -screen 0 1280x1024x24 > /dev/null 2>&1 &\nDISPLAY=:99 "$@"\nexit $?' > /usr/bin/xvfb-run && \
     chmod +x /usr/bin/xvfb-run; \
     fi
 
@@ -66,9 +70,11 @@ RUN pip install --no-cache-dir -e .
 # Instalar pacotes Python adicionais necessários
 RUN pip install --no-cache-dir fastapi uvicorn
 
-# Configurar Playwright
-ENV PLAYWRIGHT_BROWSERS_PATH=/tmp/playwright-browsers
-RUN python -m playwright install chromium
+# Pré-instalar Playwright durante o build com tratamento de erros
+RUN python -m pip install playwright && \
+    echo "Instalando navegadores Playwright..." && \
+    python -m playwright install chromium || \
+    echo "Aviso: Falha na instalação do Playwright durante o build. Será tentado novamente na inicialização."
 
 # Expor porta para a API
 EXPOSE 8000

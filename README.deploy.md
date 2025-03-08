@@ -93,6 +93,57 @@ curl -X POST https://seu-dominio.com/run \
 
 ## Solução de Problemas
 
+### Problemas de Travamento na Inicialização
+
+Se o servidor ficar travado na mensagem "Verificando instalação dos navegadores Playwright..." ou "Iniciando servidor com xvfb-run..." por mais de 10 minutos:
+
+1. **Verifique os logs completos:** Use `docker logs -f nome-do-container` para visualizar todos os logs da aplicação e identificar onde está travando.
+
+2. **Verifique recursos do sistema:** Certifique-se de que a VPS tem memória suficiente (mínimo 2GB recomendado). A instalação do Playwright pode falhar silenciosamente se não houver memória suficiente.
+
+3. **Ative o modo headless puro:**
+   - Adicione a variável de ambiente `BROWSER_USE_HEADLESS=true` nas configurações do projeto.
+   - Esta configuração fará o navegador funcionar em modo headless puro, sem depender do Xvfb.
+
+4. **Acesse o container e verifique o estado:**
+   ```bash
+   docker exec -it nome-do-container bash
+   ps aux  # Para ver os processos em execução
+   kill -9 PID  # Para matar processos travados se necessário
+   ```
+
+5. **Reinicie o container:** No dashboard do Easypanel, reinicie o container da aplicação.
+
+6. **Verifique se o Playwright consegue ser executado:**
+   ```bash
+   docker exec -it nome-do-container bash
+   python3 -c "from playwright.sync_api import sync_playwright; print('OK!' if sync_playwright().__enter__() else 'Falha')"
+   ```
+
+7. **Solução de último caso:** Se nada funcionar, modifique o arquivo `start.sh` diretamente no container para pular a verificação e instalação do Playwright, forçando o modo headless puro:
+   ```bash
+   docker exec -it nome-do-container bash
+   echo '#!/bin/bash
+   export BROWSER_USE_HEADLESS=true
+   exec python3 server.py' > /app/start.sh
+   chmod +x /app/start.sh
+   ```
+   Em seguida, reinicie o container.
+
+### Problemas com o Docker Build
+
+Se o build do Docker estiver falhando ou demorando muito:
+
+1. **Construa localmente:** Construa a imagem localmente e depois faça o upload para um registro como o Docker Hub.
+   ```bash
+   docker build -t seu-usuario/browser-use:latest .
+   docker push seu-usuario/browser-use:latest
+   ```
+
+2. **Use uma imagem pré-construída:** No Easypanel, escolha "Use existing image" e especifique `seu-usuario/browser-use:latest`.
+
+3. **Desabilite a instalação do Playwright durante o build:** Edite o Dockerfile e comente a linha que instala o Playwright, permitindo que ele seja instalado apenas durante a inicialização.
+
 ### Problemas com o Dockerfile
 
 Se você encontrar erros como `Unable to locate package xvfb-run` ou `Unable to locate package gnumake` durante o build:
