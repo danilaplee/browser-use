@@ -1,15 +1,22 @@
+[variables]
+PYTHON_VERSION = "3.11"
+
 [phases.setup]
-nixPkgs = ["chromium", "xvfb-run", "wget", "gnumake", "gcc", "git"]
+nixPkgs = ["chromium", "xorg.xvfb", "wget", "gnumake", "gcc", "git", "python311"]
 
 [phases.install]
+aptPkgs = ["xvfb", "libgtk-3-0", "libdbus-glib-1-2", "x11-utils"]
 cmds = [
-  "python -m pip install -e .",
+  "if [ ! -f /usr/bin/xvfb-run ]; then echo '#!/bin/bash\nXvfb :99 -screen 0 1280x1024x24 > /dev/null 2>&1 &\nDISPLAY=:99 \"$@\"' > /usr/bin/xvfb-run && chmod +x /usr/bin/xvfb-run; fi",
+  "python3 -m pip install --upgrade pip",
+  "python3 -m pip install -e .",
+  "python3 -m pip install fastapi uvicorn",
   "chmod +x start.sh"
 ]
 
 [phases.build]
 cmds = [
-  "playwright install chromium",
+  "python3 -m playwright install chromium",
   "echo 'Build phase completed'"
 ]
 

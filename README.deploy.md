@@ -32,9 +32,9 @@ Na tela de configuração do projeto:
 
 1. Escolha **Build from source**
 2. Insira o URL do seu repositório Git (GitHub, GitLab, etc.)
-3. Em "Build settings", selecione **Nixpacks** como o builder
-4. Certifique-se de que a versão do Nixpacks é 1.30 ou superior
-5. Em "Start command" deixe em branco (o comando está definido no nixpacks.toml)
+3. Em "Build settings", selecione **Dockerfile** como o builder (recomendado)
+   - Alternativamente, você pode usar **Nixpacks** com a versão 1.30 ou superior
+4. Em "Start command" deixe em branco (o comando está definido no Dockerfile/nixpacks.toml)
 
 ### 4. Configuração de Recursos
 
@@ -93,6 +93,26 @@ curl -X POST https://seu-dominio.com/run \
 
 ## Solução de Problemas
 
+### Problemas com o Dockerfile
+
+Se você encontrar erros como `Unable to locate package xvfb-run` ou `Unable to locate package gnumake` durante o build:
+
+1. **Nomes de pacotes corretos**: Certifique-se de usar os nomes corretos para os pacotes Debian. Por exemplo, use `make` em vez de `gnumake` e garanta que o `xvfb` está sendo instalado.
+
+2. **Script xvfb-run personalizado**: O Dockerfile inclui um script personalizado para criar o utilitário `xvfb-run` se ele não estiver disponível no sistema.
+
+3. **Dependências de X11**: Certifique-se de que o pacote `x11-utils` está instalado para ter acesso a ferramentas como `xdpyinfo`.
+
+### Problemas com o Python
+
+Se você encontrar erros como `python: command not found`:
+
+1. **Usar o Dockerfile**: Recomendamos fortemente usar o Dockerfile fornecido, que já está configurado com todas as dependências necessárias, incluindo a versão correta do Python.
+
+2. **Ajustar o nixpacks.toml**: Se preferir usar Nixpacks, certifique-se de que o arquivo `nixpacks.toml` inclui `python311` na lista de `nixPkgs` e que todos os comandos usam `python3` em vez de `python`.
+
+3. **Verificar variáveis de ambiente**: Certifique-se de que o Python está no PATH do sistema.
+
 ### Problemas com Nixpacks e pacotes não encontrados
 
 Se você encontrar erros como `undefined variable 'nome-do-pacote'` durante o build com Nixpacks:
@@ -107,7 +127,7 @@ Se você encontrar erros como `undefined variable 'nome-do-pacote'` durante o bu
 Se houver problemas com o Chrome/Chromium:
 
 1. Verifique os logs da aplicação para erros específicos
-2. Certifique-se de que o Easypanel está utilizando o arquivo nixpacks.toml
+2. Certifique-se de que o Easypanel está utilizando o arquivo nixpacks.toml ou o Dockerfile
 3. Se necessário, adicione a variável de ambiente `PLAYWRIGHT_BROWSERS_PATH=/tmp/playwright-browsers` para permitir que o Playwright baixe e instale automaticamente os navegadores
 
 ### Erros na Execução do Navegador
@@ -120,8 +140,10 @@ Se o navegador não iniciar corretamente, tente:
 
 ## Usando Docker em vez de Nixpacks
 
-Se você estiver enfrentando muitos problemas com Nixpacks, considere usar o Docker:
+Devido aos problemas comuns com Nixpacks, recomendamos **fortemente** usar o Docker para deploy:
 
 1. No Easypanel, escolha "Custom" como tipo de projeto
 2. Em "Build settings", selecione **Dockerfile** como builder
-3. O sistema usará o Dockerfile fornecido no repositório, que inclui todas as dependências necessárias 
+3. O sistema usará o Dockerfile fornecido no repositório, que inclui todas as dependências necessárias
+
+O Dockerfile foi especialmente configurado para resolver os problemas comuns de dependências e configuração do Python. 

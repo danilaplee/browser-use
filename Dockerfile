@@ -1,5 +1,10 @@
 FROM python:3.11-slim
 
+# Configurar variáveis de ambiente
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PATH="/root/.local/bin:$PATH"
+
 # Instalar dependências do sistema
 RUN apt-get update && apt-get install -y \
     wget \
@@ -24,11 +29,17 @@ RUN apt-get update && apt-get install -y \
     fonts-liberation \
     fonts-noto-color-emoji \
     fonts-noto-cjk \
-    xvfb-run \
-    gnumake \
+    x11-utils \
+    make \
     gcc \
     git \
     && rm -rf /var/lib/apt/lists/*
+
+# Criar script xvfb-run se não estiver disponível
+RUN if [ ! -f /usr/bin/xvfb-run ]; then \
+    echo '#!/bin/bash\nXvfb :99 -screen 0 1280x1024x24 > /dev/null 2>&1 &\nDISPLAY=:99 "$@"' > /usr/bin/xvfb-run && \
+    chmod +x /usr/bin/xvfb-run; \
+    fi
 
 # Instalar o Chrome
 RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
@@ -45,6 +56,9 @@ COPY . .
 
 # Tornar o script de inicialização executável
 RUN chmod +x start.sh
+
+# Instalar pip atualizado
+RUN python -m pip install --upgrade pip setuptools wheel
 
 # Instalar dependências Python
 RUN pip install --no-cache-dir -e .
