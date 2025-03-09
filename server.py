@@ -38,11 +38,11 @@ class ModelConfig(BaseModel):
     temperature: float = Field(0.0, description="Temperatura para geração (0.0 a 1.0)")
 
 class TaskRequest(BaseModel):
-    task: str = Field(..., description="Tarefa a ser executada pelo agente")
-    model_config: ModelConfig = Field(..., description="Configuração do modelo de linguagem")
-    browser_config: Optional[BrowserConfigModel] = Field(None, description="Configuração do navegador")
-    max_steps: int = Field(20, description="Número máximo de passos a serem executados")
-    use_vision: bool = Field(True, description="Usar recursos de visão")
+    task: str
+    model_config: ModelConfig
+    browser_config: Optional[BrowserConfigModel] = None
+    max_steps: int = 20
+    use_vision: bool = True
 
 class AgentResponse(BaseModel):
     task: str
@@ -80,7 +80,7 @@ def get_llm(model_config: ModelConfig):
             return ChatGoogleGenerativeAI(
                 model=model_config.model_name,
                 temperature=model_config.temperature,
-                api_key=SecretStr(model_config.api_key or os.getenv("GEMINI_API_KEY", ""))
+                google_api_key=(model_config.api_key or os.getenv("GOOGLE_API_KEY", ""))
             )
         elif provider == "ollama":
             return ChatOllama(
