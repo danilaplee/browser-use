@@ -79,7 +79,7 @@ curl -X POST https://seu-dominio.com/run \
   -H "Content-Type: application/json" \
   -d '{
     "task": "Busque o título da página inicial do Google",
-    "model_config": {
+    "llm_config": {
       "provider": "openai",
       "model_name": "gpt-4o",
       "temperature": 0.0

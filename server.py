@@ -39,7 +39,7 @@ class ModelConfig(BaseModel):
 
 class TaskRequest(BaseModel):
     task: str
-    model_config: ModelConfig
+    llm_config: ModelConfig
     browser_config: Optional[BrowserConfigModel] = None
     max_steps: int = 20
     use_vision: bool = True
@@ -97,7 +97,7 @@ def get_llm(model_config: ModelConfig):
 async def run_agent(request: TaskRequest = Body(...)):
     try:
         # Configurar o modelo LLM
-        llm = get_llm(request.model_config)
+        llm = get_llm(request.llm_config)
         
         # Configurar o navegador
         browser_config = BrowserConfig(
