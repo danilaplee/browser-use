@@ -3,6 +3,7 @@
 # Configurar variáveis de ambiente para o Playwright
 export PLAYWRIGHT_BROWSERS_PATH=/tmp/playwright-browsers
 export BROWSER_USE_DEBUG=true  # Ativar modo de debug para mais logs
+export DISPLAY=:99
 
 echo "Iniciando script de inicialização com timeout de segurança..."
 
@@ -48,14 +49,23 @@ if [ "$BROWSER_USE_HEADLESS" = "true" ]; then
     exit 0
 fi
 
-# Garantir que temos acesso ao Xvfb
-if [ ! -f /usr/bin/Xvfb ]; then
-    echo "Xvfb não está instalado. Tentando instalar..."
-    apt-get update && apt-get install -y xvfb
-    if [ $? -ne 0 ]; then
-        echo "Não foi possível instalar o Xvfb. Usando modo headless puro."
+# Verifica se o Xvfb está instalado
+if ! command -v Xvfb &> /dev/null; then
+    echo "Xvfb não encontrado. Tentando instalar..."
+    apt-get update && apt-get install -y x11-utils || {
+        echo "Falha ao instalar Xvfb. Iniciando em modo headless..."
         export BROWSER_USE_HEADLESS=true
-    fi
+    }
+fi
+
+# Verifica se o xvfb-run está disponível
+if ! command -v xvfb-run &> /dev/null; then
+    echo "xvfb-run não encontrado. Criando script alternativo..."
+    echo '#!/bin/bash
+Xvfb :99 -screen 0 1024x768x24 &
+DISPLAY=:99 "$@"
+' > /usr/local/bin/xvfb-run
+    chmod +x /usr/local/bin/xvfb-run
 fi
 
 # Verificar se os navegadores Playwright já estão instalados
@@ -94,7 +104,6 @@ if command -v xvfb-run &> /dev/null; then
     if [ $? -eq 0 ]; then
         echo "xvfb-run está funcionando corretamente."
         # Iniciar o servidor usando xvfb-run com timeout de segurança
-        export DISPLAY=:99
         echo "Iniciando servidor..."
         exec xvfb-run --server-args="-screen 0 1280x1024x24" python3 server.py
         exit 0
@@ -108,4 +117,15 @@ fi
 
 echo "Nenhum método de inicialização X virtual funcionou. Usando modo headless puro."
 export BROWSER_USE_HEADLESS=true
-exec python3 server.py 
+
+# Executa migrações do banco de dados
+echo "Executando migrações do banco de dados..."
+alembic upgrade head
+
+# Inicia o servidor
+echo "Iniciando servidor..."
+if command -v xvfb-run &> /dev/null; then
+    xvfb-run python3 -m uvicorn api:app --host 0.0.0.0 --port 8000
+else
+    python3 -m uvicorn api:app --host 0.0.0.0 --port 8000
+fi 

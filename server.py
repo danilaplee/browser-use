@@ -2,7 +2,8 @@ import os
 import logging
 import asyncio
 from typing import Optional, Dict, Any, List
-from fastapi import FastAPI, HTTPException, Body
+from fastapi import FastAPI, HTTPException, Body, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI, AzureChatOpenAI
@@ -10,6 +11,9 @@ from langchain_anthropic import ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_ollama import ChatOllama
 from pydantic import SecretStr
+from api import router, collect_metrics_periodically
+from database import engine, Base, get_db
+from sqlalchemy.orm import Session
 
 from browser_use import Agent, BrowserConfig, Browser
 
@@ -21,7 +25,23 @@ logger = logging.getLogger("browser-use-api")
 # Carregar variáveis de ambiente
 load_dotenv()
 
+# Cria tabelas do banco de dados
+Base.metadata.create_all(bind=engine)
+
+# Inicializa o aplicativo FastAPI
 app = FastAPI(title="Browser-use API", description="API para controlar o Browser-use")
+
+# Configura CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Inclui rotas da API
+app.include_router(router)
 
 # Modelos de dados
 class BrowserConfigModel(BaseModel):
@@ -150,8 +170,23 @@ async def run_agent(request: TaskRequest = Body(...)):
             error=str(e)
         )
 
+@app.on_event("startup")
+async def startup_event():
+    """Inicializa tarefas em background ao iniciar o servidor"""
+    db = next(get_db())
+    try:
+        # Inicia coleta de métricas
+        background_tasks = BackgroundTasks()
+        background_tasks.add_task(collect_metrics_periodically, db)
+        logger.info("Tarefas em background iniciadas com sucesso")
+    except Exception as e:
+        logger.error(f"Erro ao iniciar tarefas em background: {str(e)}")
+    finally:
+        db.close()
+
 @app.get("/health")
-def health_check():
+async def health_check():
+    """Endpoint para verificar a saúde da API"""
     return {"status": "healthy"}
 
 if __name__ == "__main__":

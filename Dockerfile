@@ -8,6 +8,7 @@ ENV BROWSER_USE_DEBUG=true
 ENV PLAYWRIGHT_BROWSERS_PATH=/tmp/playwright-browsers
 # NOTA: GOOGLE_API_KEY deve ser definida nas configurações do ambiente de deploy
 # ENV GOOGLE_API_KEY=""
+ENV DISPLAY=:99
 
 # Instalar dependências do sistema
 RUN apt-get update && apt-get install -y \
@@ -40,12 +41,13 @@ RUN apt-get update && apt-get install -y \
     procps \
     dbus \
     curl \
+    python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Criar script xvfb-run se não estiver disponível
 RUN if [ ! -f /usr/bin/xvfb-run ]; then \
-    echo '#!/bin/bash\nXvfb :99 -screen 0 1280x1024x24 > /dev/null 2>&1 &\nDISPLAY=:99 "$@"\nexit $?' > /usr/bin/xvfb-run && \
-    chmod +x /usr/bin/xvfb-run; \
+    echo '#!/bin/bash\nXvfb :99 -screen 0 1024x768x24 &\nDISPLAY=:99 "$@"' > /usr/local/bin/xvfb-run && \
+    chmod +x /usr/local/bin/xvfb-run; \
     fi
 
 # Instalar o Chrome
