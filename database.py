@@ -15,14 +15,17 @@ logger = logging.getLogger('browser-use.database')
 
 load_dotenv()
 
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
+# Converte a URL do banco de dados para usar o driver asyncpg
+DATABASE_URL = os.getenv("DATABASE_URL")
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://")
 
 log_info(logger, "Inicializando conexão com o banco de dados", {
-    "database_url": SQLALCHEMY_DATABASE_URL.replace(os.getenv("POSTGRES_PASSWORD", ""), "****")
+    "database_url": DATABASE_URL.replace(os.getenv("POSTGRES_PASSWORD", ""), "****")
 })
 
 # Configuração do banco de dados assíncrono
-engine = create_async_engine(SQLALCHEMY_DATABASE_URL)
+engine = create_async_engine(DATABASE_URL)
 async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 Base = declarative_base()
