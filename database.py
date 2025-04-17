@@ -3,10 +3,11 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
 
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./browser_use.db")
+# Configuração do banco de dados PostgreSQL
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "postgres://postgres:3386C@le@browser-use_postgres:5432/browser-use?sslmode=disable")
 
 # Configuração do banco de dados
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
