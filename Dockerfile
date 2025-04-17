@@ -104,28 +104,28 @@ WORKDIR /app
 
 # Instalar dependências Python
 RUN pip install --no-cache-dir \
-    fastapi>=0.104.0 \
-    uvicorn>=0.24.0 \
-    playwright>=1.40.0 \
-    langchain>=0.0.350 \
-    langchain-openai>=0.0.5 \
-    langchain-anthropic>=0.0.2 \
-    langchain-google-genai>=0.0.5 \
-    langchain-ollama>=0.0.2 \
-    sqlalchemy>=2.0.23 \
-    asyncpg>=0.29.0 \
-    psycopg2-binary>=2.9.9 \
-    python-dotenv>=1.0.0 \
-    pydantic>=2.5.2 \
-    pydantic-settings>=2.1.0 \
-    python-jose[cryptography]>=3.3.0 \
-    passlib[bcrypt]>=1.7.4 \
-    python-multipart>=0.0.6 \
-    aiohttp>=3.9.1 \
-    httpx>=0.25.2 \
-    psutil>=5.9.6 \
-    alembic>=1.12.1 \
-    greenlet>=3.0.1
+    fastapi==0.104.0 \
+    uvicorn==0.24.0 \
+    playwright==1.40.0 \
+    langchain==0.0.350 \
+    langchain-openai==0.0.5 \
+    langchain-anthropic==0.0.2 \
+    langchain-google-genai==0.0.5 \
+    langchain-ollama==0.0.2 \
+    sqlalchemy==2.0.23 \
+    asyncpg==0.29.0 \
+    psycopg2-binary==2.9.9 \
+    python-dotenv==1.0.0 \
+    pydantic==2.5.2 \
+    pydantic-settings==2.1.0 \
+    python-jose[cryptography]==3.3.0 \
+    passlib[bcrypt]==1.7.4 \
+    python-multipart==0.0.6 \
+    aiohttp==3.9.1 \
+    httpx==0.25.2 \
+    psutil==5.9.6 \
+    alembic==1.12.1 \
+    greenlet==3.0.1
 
 # Instalar browsers do Playwright
 RUN playwright install chromium
