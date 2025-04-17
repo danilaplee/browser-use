@@ -96,23 +96,6 @@ async def init_db():
         }, exc_info=True)
         raise
 
-# Inicializa o banco de dados de forma assíncrona
-async def init_db_async():
-    log_info(logger, "Iniciando inicialização assíncrona do banco de dados")
-    await init_db()
-
-# Executa a inicialização do banco de dados
-def init_db_sync():
-    log_info(logger, "Iniciando inicialização síncrona do banco de dados")
-    try:
-        asyncio.run(init_db_async())
-        log_info(logger, "Banco de dados inicializado com sucesso")
-    except Exception as e:
-        log_error(logger, "Erro ao inicializar banco de dados de forma síncrona", {
-            "error": str(e)
-        }, exc_info=True)
-        raise
-
 # Funções CRUD para Task
 async def create_task(db: AsyncSession, task_data: dict) -> Task:
     """Cria uma nova tarefa no banco de dados"""

@@ -12,7 +12,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_ollama import ChatOllama
 from pydantic import SecretStr
 from api import router, collect_metrics_periodically
-from database import engine, Base, get_db, init_db_sync
+from database import engine, Base, get_db, init_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from logging_config import setup_logging, log_info, log_error, log_debug, log_warning
 
@@ -202,19 +202,19 @@ async def run_agent(
 
 @app.on_event("startup")
 async def startup_event():
-    """Inicializa tarefas em background ao iniciar o servidor"""
-    log_info(logger, "Iniciando evento de startup")
+    """Evento de inicialização do aplicativo"""
     try:
-        # Inicializa o banco de dados de forma síncrona
-        init_db_sync()
+        # Inicializa o banco de dados
+        await init_db()
+        log_info(logger, "Banco de dados inicializado com sucesso")
         
-        # Inicia coleta de métricas
+        # Inicia a coleta periódica de métricas
         asyncio.create_task(collect_metrics_periodically())
-        log_info(logger, "Tarefas em background iniciadas com sucesso")
+        log_info(logger, "Coleta periódica de métricas iniciada")
+        
     except Exception as e:
-        log_error(logger, "Erro ao iniciar tarefas em background", {
-            "error": str(e)
-        }, exc_info=True)
+        log_error(logger, f"Erro durante a inicialização: {str(e)}")
+        raise
 
 @app.get("/health")
 async def health_check():
