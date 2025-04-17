@@ -20,8 +20,10 @@ class Settings(BaseSettings):
     # Configurações de autenticação
     API_KEY: Optional[str] = None
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = {
+        "protected_namespaces": (),
+        "env_file": ".env",
+        "case_sensitive": True
+    }
 
 settings = Settings() 
