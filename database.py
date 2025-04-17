@@ -29,7 +29,7 @@ log_info(logger, "Inicializando conexão com o banco de dados", {
     "port": os.getenv("POSTGRES_PORT"),
     "user": os.getenv("POSTGRES_USER"),
     "db": os.getenv("POSTGRES_DB"),
-    "ssl_mode": "disable"
+    "ssl": False
 })
 
 # Configuração do banco de dados assíncrono
@@ -42,7 +42,8 @@ engine = create_async_engine(
     connect_args={
         "server_settings": {
             "application_name": "browser-use"
-        }
+        },
+        "ssl": False
     }
 )
 async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
