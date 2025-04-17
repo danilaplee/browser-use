@@ -25,20 +25,24 @@ load_dotenv()
 
 # Configuração do banco de dados
 Base = declarative_base()
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:3386C@le@browser-use_postgres:5432/browser_use")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:3386C@le@172.17.0.1:5432/browser_use")
 engine = create_async_engine(DATABASE_URL, echo=True)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
 
 # Criar tabelas de forma assíncrona
 async def init_models():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        log_info(logger, "Banco de dados inicializado com sucesso")
+    except Exception as e:
+        log_error(logger, f"Erro ao inicializar banco de dados: {str(e)}")
+        raise
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Inicializar o banco de dados
     await init_models()
-    log_info(logger, "Banco de dados inicializado com sucesso")
     
     # Iniciar a coleta periódica de métricas
     asyncio.create_task(collect_metrics_periodically())
