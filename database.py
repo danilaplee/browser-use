@@ -24,11 +24,13 @@ if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://")
 
 log_info(logger, "Inicializando conexão com o banco de dados", {
-    "database_url": DATABASE_URL.replace(os.getenv("POSTGRES_PASSWORD", ""), "****")
+    "database_url": DATABASE_URL.replace(os.getenv("POSTGRES_PASSWORD", ""), "****"),
+    "host": os.getenv("POSTGRES_HOST"),
+    "port": os.getenv("POSTGRES_PORT")
 })
 
 # Configuração do banco de dados assíncrono
-engine = create_async_engine(DATABASE_URL)
+engine = create_async_engine(DATABASE_URL, echo=True)
 async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 Base = declarative_base()

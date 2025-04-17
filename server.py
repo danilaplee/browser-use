@@ -30,6 +30,9 @@ if not DATABASE_URL:
     raise ValueError("DATABASE_URL não está definida nas variáveis de ambiente")
 
 log_info(logger, f"Conectando ao banco de dados em: {DATABASE_URL}")
+log_info(logger, f"Host do PostgreSQL: {os.getenv('POSTGRES_HOST')}")
+log_info(logger, f"Porta do PostgreSQL: {os.getenv('POSTGRES_PORT')}")
+
 engine = create_async_engine(DATABASE_URL, echo=True)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
 
@@ -38,6 +41,9 @@ async def init_models():
     try:
         log_info(logger, "Tentando conectar ao banco de dados...")
         log_info(logger, f"URL do banco de dados: {DATABASE_URL}")
+        log_info(logger, f"Host do PostgreSQL: {os.getenv('POSTGRES_HOST')}")
+        log_info(logger, f"Porta do PostgreSQL: {os.getenv('POSTGRES_PORT')}")
+        
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         log_info(logger, "Banco de dados inicializado com sucesso")
