@@ -112,6 +112,34 @@ async def process_queue():
 # Iniciar processamento da fila
 asyncio.create_task(process_queue())
 
+# Função para coletar métricas periodicamente
+async def collect_metrics_periodically():
+    """Coleta métricas do sistema periodicamente e ajusta o limite de tarefas simultâneas"""
+    while True:
+        try:
+            # Atualizar o limite de tarefas simultâneas baseado nos recursos
+            global MAX_CONCURRENT_TASKS
+            MAX_CONCURRENT_TASKS = calculate_max_tasks()
+            
+            # Log das métricas atuais
+            log_info(logger, "Métricas do sistema atualizadas", {
+                "max_concurrent_tasks": MAX_CONCURRENT_TASKS,
+                "active_tasks": len(running_tasks),
+                "queued_tasks": task_queue.qsize(),
+                "cpu_usage": psutil.cpu_percent(),
+                "memory_usage": psutil.virtual_memory().percent
+            })
+            
+            # Aguardar 30 segundos antes da próxima coleta
+            await asyncio.sleep(30)
+            
+        except Exception as e:
+            log_error(logger, f"Erro ao coletar métricas: {str(e)}")
+            await asyncio.sleep(30)  # Aguardar mesmo em caso de erro
+
+# Iniciar coleta periódica de métricas
+asyncio.create_task(collect_metrics_periodically())
+
 @router.post("/run")
 async def run_task(request: TaskRequest, db: Session = Depends(get_db)):
     """Executa uma nova tarefa de automação"""
