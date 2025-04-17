@@ -20,6 +20,7 @@ from config import settings
 from models import BrowserMetrics, TaskResponse, Session, SessionResponse, Metrics
 from logging_config import setup_logging, log_info, log_error, log_debug, log_warning
 from fastapi.responses import JSONResponse
+from schemas import TaskCreate, TaskResponse, SessionResponse, BrowserMetricsResponse, MetricsResponse, SystemStatus
 
 # Configuração de logging
 logger = logging.getLogger('browser-use.api')
@@ -222,27 +223,22 @@ async def list_tasks():
         log_error(logger, f"Erro ao listar tarefas: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/tasks/{task_id}")
-async def get_task_by_id(task_id: str):
+@app.get("/tasks/{task_id}", response_model=TaskResponse)
+async def get_task_by_id(task_id: str, db: AsyncSession = Depends(get_db)):
     try:
-        task = await get_task(task_id)
+        task = await get_task(db, int(task_id))
         if not task:
-            log_warning(logger, f"Tarefa não encontrada: {task_id}")
             raise HTTPException(status_code=404, detail="Tarefa não encontrada")
-        log_info(logger, f"Tarefa recuperada: {task_id}")
         return task
-    except HTTPException:
-        raise
     except Exception as e:
         log_error(logger, f"Erro ao recuperar tarefa {task_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/tasks")
-async def create_new_task(task: Task):
+@app.post("/tasks", response_model=TaskResponse)
+async def create_new_task(task: TaskCreate, db: AsyncSession = Depends(get_db)):
     try:
-        new_task = await create_task(task)
-        log_info(logger, f"Nova tarefa criada: {new_task.task_id}")
-        return new_task
+        db_task = await create_task(db, task.dict())
+        return db_task
     except Exception as e:
         log_error(logger, f"Erro ao criar tarefa: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -277,35 +273,33 @@ async def delete_existing_task(task_id: str):
         log_error(logger, f"Erro ao excluir tarefa {task_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/sessions")
-async def list_sessions():
+@app.get("/sessions", response_model=List[SessionResponse])
+async def list_sessions(db: AsyncSession = Depends(get_db)):
     try:
-        sessions = await get_sessions()
+        sessions = await get_sessions(db)
         log_info(logger, f"Listadas {len(sessions)} sessões")
         return sessions
     except Exception as e:
         log_error(logger, f"Erro ao listar sessões: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/sessions/{session_id}")
-async def get_session_by_id(session_id: str):
+@app.get("/sessions/{session_id}", response_model=SessionResponse)
+async def get_session_by_id(session_id: str, db: AsyncSession = Depends(get_db)):
     try:
-        session = await get_session(session_id)
+        session = await get_session(db, int(session_id))
         if not session:
             log_warning(logger, f"Sessão não encontrada: {session_id}")
             raise HTTPException(status_code=404, detail="Sessão não encontrada")
         log_info(logger, f"Sessão recuperada: {session_id}")
         return session
-    except HTTPException:
-        raise
     except Exception as e:
         log_error(logger, f"Erro ao recuperar sessão {session_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/tasks/{task_id}/sessions")
-async def get_sessions_by_task(task_id: str):
+@app.get("/tasks/{task_id}/sessions", response_model=List[SessionResponse])
+async def get_sessions_by_task(task_id: str, db: AsyncSession = Depends(get_db)):
     try:
-        sessions = await get_task_sessions(task_id)
+        sessions = await get_task_sessions(db, int(task_id))
         log_info(logger, f"Listadas {len(sessions)} sessões para a tarefa {task_id}")
         return sessions
     except Exception as e:
