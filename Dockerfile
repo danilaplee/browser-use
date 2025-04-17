@@ -118,11 +118,6 @@ RUN pip install --no-cache-dir \
     fastapi==0.104.0 \
     uvicorn==0.24.0 \
     playwright==1.40.0 \
-    langchain \
-    langchain-openai \
-    langchain-anthropic \
-    langchain-google-genai \
-    langchain-ollama \
     sqlalchemy==2.0.23 \
     asyncpg==0.29.0 \
     psycopg2-binary==2.9.9 \
@@ -137,6 +132,10 @@ RUN pip install --no-cache-dir \
     psutil==5.9.6 \
     alembic==1.12.1 \
     greenlet==3.0.1
+
+# Instalar pacotes LangChain necessários
+RUN pip install --no-cache-dir langchain==0.1.0
+RUN pip install --no-cache-dir langchain-openai==0.0.5
 
 # Instalar browsers do Playwright
 RUN playwright install chromium
