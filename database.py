@@ -26,11 +26,25 @@ if DATABASE_URL.startswith("postgres://"):
 log_info(logger, "Inicializando conexão com o banco de dados", {
     "database_url": DATABASE_URL.replace(os.getenv("POSTGRES_PASSWORD", ""), "****"),
     "host": os.getenv("POSTGRES_HOST"),
-    "port": os.getenv("POSTGRES_PORT")
+    "port": os.getenv("POSTGRES_PORT"),
+    "user": os.getenv("POSTGRES_USER"),
+    "db": os.getenv("POSTGRES_DB"),
+    "ssl_mode": "disable"
 })
 
 # Configuração do banco de dados assíncrono
-engine = create_async_engine(DATABASE_URL, echo=True)
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=True,
+    pool_pre_ping=True,
+    pool_size=5,
+    max_overflow=10,
+    connect_args={
+        "server_settings": {
+            "application_name": "browser-use"
+        }
+    }
+)
 async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 Base = declarative_base()
