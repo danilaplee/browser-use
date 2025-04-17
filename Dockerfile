@@ -6,6 +6,11 @@ ENV PYTHONUNBUFFERED=1
 ENV PATH="/root/.local/bin:$PATH"
 ENV DISPLAY=:99
 
+# Criar usuário não-root
+RUN useradd -m -u 1000 appuser && \
+    mkdir -p /app && \
+    chown appuser:appuser /app
+
 # Instalar dependências do sistema
 RUN apt-get update && apt-get install -y \
     wget \
@@ -44,13 +49,14 @@ RUN apt-get update && apt-get install -y \
 
 # Criar diretório para logs
 RUN mkdir -p /var/log/browser-use && \
+    chown -R appuser:appuser /var/log/browser-use && \
     chmod 777 /var/log/browser-use
 
 # Configurar diretório de trabalho
 WORKDIR /app
 
 # Copiar arquivos necessários
-COPY . .
+COPY --chown=appuser:appuser . .
 
 # Tornar scripts executáveis
 RUN chmod +x start.sh
@@ -62,7 +68,19 @@ RUN python -m pip install --upgrade pip setuptools wheel
 RUN pip install --no-cache-dir -e .
 
 # Instalar pacotes Python adicionais necessários
-RUN pip install --no-cache-dir fastapi uvicorn langchain-google-genai psycopg2-binary
+RUN pip install --no-cache-dir \
+    fastapi \
+    uvicorn \
+    langchain-google-genai \
+    psycopg2-binary \
+    aiohttp \
+    python-dotenv \
+    alembic \
+    sqlalchemy \
+    pydantic \
+    python-jose[cryptography] \
+    passlib[bcrypt] \
+    python-multipart
 
 # Pré-instalar Playwright durante o build
 RUN python -m pip install playwright && \
@@ -79,6 +97,9 @@ ENV DEBUG=false
 ENV PLAYWRIGHT_BROWSERS_PATH=/tmp/playwright-browsers
 ENV BROWSER_USE_DEBUG=true
 ENV BROWSER_USE_HEADLESS=true
+
+# Mudar para usuário não-root
+USER appuser
 
 # Iniciar a aplicação usando o script
 CMD ["./start.sh"] 
