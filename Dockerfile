@@ -118,11 +118,11 @@ RUN pip install --no-cache-dir \
     fastapi==0.104.0 \
     uvicorn==0.24.0 \
     playwright==1.40.0 \
-    langchain==0.1.0 \
-    langchain-openai==0.0.5 \
-    langchain-anthropic==0.0.2 \
-    langchain-google-genai==0.0.5 \
-    langchain-ollama==0.3.2 \
+    langchain \
+    langchain-openai \
+    langchain-anthropic \
+    langchain-google-genai \
+    langchain-ollama \
     sqlalchemy==2.0.23 \
     asyncpg==0.29.0 \
     psycopg2-binary==2.9.9 \
