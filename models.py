@@ -85,4 +85,19 @@ class Metrics(Base):
     memory_usage = Column(Float, nullable=False)
     disk_usage = Column(Float, nullable=False)
     network_usage = Column(Float, nullable=False)
-    timestamp = Column(DateTime, default=datetime.utcnow) 
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
+class Session(Base):
+    __tablename__ = "sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id"))
+    start_time = Column(DateTime, default=datetime.utcnow)
+    end_time = Column(DateTime, nullable=True)
+    status = Column(String(50), default="running")
+    error = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    task = relationship("Task", back_populates="sessions")
+
+Task.sessions = relationship("Session", back_populates="task") 
