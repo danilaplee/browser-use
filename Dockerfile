@@ -142,10 +142,6 @@ RUN pip install --no-cache-dir langchain-openai==0.0.5
 RUN playwright install chromium
 RUN playwright install-deps
 
-# Copiar requirements e instalar dependências Python
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
 # Copiar o código da aplicação
 COPY . .
 
