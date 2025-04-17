@@ -25,7 +25,8 @@ load_dotenv()
 
 # Configuração do banco de dados
 Base = declarative_base()
-engine = create_async_engine(os.getenv("DATABASE_URL"))
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/browser_use")
+engine = create_async_engine(DATABASE_URL, echo=True)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
 
 # Criar tabelas de forma assíncrona

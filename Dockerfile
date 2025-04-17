@@ -132,7 +132,8 @@ RUN pip install --no-cache-dir \
     psutil==5.9.6 \
     alembic==1.12.1 \
     greenlet==3.0.1 \
-    posthog==3.0.0
+    posthog==3.0.0 \
+    asyncpg==0.29.0
 
 # Instalar pacotes LangChain necessários
 RUN pip install --no-cache-dir langchain==0.1.0
