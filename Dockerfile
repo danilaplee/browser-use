@@ -78,6 +78,7 @@ RUN pip install --no-cache-dir \
     alembic \
     sqlalchemy \
     pydantic \
+    pydantic-settings \
     python-jose[cryptography] \
     passlib[bcrypt] \
     python-multipart \
