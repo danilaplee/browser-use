@@ -25,12 +25,15 @@ from crud import (
 from notifications import webhook_manager
 
 # Configuração de logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="Browser-use API",
-    description="API para automação de navegador",
+    title="Browser Automation API",
+    description="API para automação de navegador com gerenciamento de sessões",
     version="1.0.0"
 )
 
@@ -171,73 +174,96 @@ async def collect_metrics():
         await asyncio.sleep(3600)  # Coleta a cada hora
 
 @app.on_event("startup")
-async def startup():
-    # Inicia o processador de tarefas
-    asyncio.create_task(process_task_queue())
-    # Inicia o coletor de métricas
-    asyncio.create_task(collect_metrics())
-    await browser_manager.initialize()
+async def startup_event():
+    """Inicializa o gerenciador de navegador na inicialização da aplicação"""
+    try:
+        await browser_manager.initialize()
+        logger.info("BrowserManager inicializado com sucesso")
+    except Exception as e:
+        logger.error(f"Erro ao inicializar BrowserManager: {str(e)}")
+        raise
 
 @app.on_event("shutdown")
-async def shutdown():
-    await browser_manager.close()
-    await webhook_manager.close()
-
-@app.post("/run", response_model=TaskResponse)
-async def run_task(task: TaskCreate, request: Request):
-    """Cria e agenda uma nova tarefa"""
+async def shutdown_event():
+    """Fecha o gerenciador de navegador no encerramento da aplicação"""
     try:
-        # Cria nova tarefa no banco de dados
-        async with get_db() as db:
-            db_task = Task(
-                task=task.task,
-                config=task.config,
-                status="pending",
-                priority=task.priority,
-                max_retries=task.max_retries,
-                timeout=task.timeout,
-                tags=task.tags,
-                metadata=task.metadata
-            )
-            db.add(db_task)
-            await db.commit()
-            await db.refresh(db_task)
-            
-            # Adiciona à fila de prioridade
-            with task_lock:
-                task_queue.put((-db_task.priority, db_task.id))
-            
-            # Executa a tarefa usando o pool de sessões
-            result = await browser_manager.execute_task(task.task, task.config)
-            
-            # Atualiza o status e resultado da tarefa
-            db_task.status = "completed"
-            db_task.result = str(result)
-            db_task.completed_at = datetime.utcnow()
-            await db.commit()
-            
-            return TaskResponse(
-                id=db_task.id,
-                status=db_task.status,
-                priority=db_task.priority,
-                result=db_task.result,
-                error=db_task.error,
-                created_at=db_task.created_at,
-                completed_at=db_task.completed_at
-            )
-            
+        await browser_manager.close()
+        logger.info("BrowserManager encerrado com sucesso")
     except Exception as e:
-        logger.error(f"Erro ao criar tarefa: {str(e)}")
+        logger.error(f"Erro ao encerrar BrowserManager: {str(e)}")
+
+@app.post("/run")
+async def run_task(task: TaskCreate, db: Session = Depends(get_db)):
+    """Executa uma nova tarefa de automação"""
+    try:
+        # Cria a tarefa no banco de dados
+        db_task = await create_task(db, task)
+        logger.info(f"Tarefa {db_task.id} criada com sucesso")
+        
+        # Executa a tarefa usando o pool de sessões
+        result = await browser_manager.execute_task(task.task, task.config)
+        logger.info(f"Tarefa {db_task.id} executada com sucesso")
+        
+        # Atualiza o status e resultado da tarefa
+        db_task.status = "completed"
+        db_task.result = str(result)
+        db_task.completed_at = datetime.utcnow()
+        await db.commit()
+        
+        return TaskResponse(
+            id=db_task.id,
+            status=db_task.status,
+            priority=db_task.priority,
+            result=db_task.result,
+            error=db_task.error,
+            created_at=db_task.created_at,
+            completed_at=db_task.completed_at
+        )
+    except Exception as e:
+        logger.error(f"Erro ao executar tarefa: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/task/{task_id}", response_model=TaskResponse)
-async def get_task(task_id: int):
-    """Obtém o status e resultado de uma tarefa"""
+@app.get("/metrics")
+async def get_metrics():
+    """Retorna métricas do sistema e do navegador"""
     try:
-        task = await get_task_from_db(task_id)
+        return await browser_manager.get_metrics()
+    except Exception as e:
+        logger.error(f"Erro ao obter métricas: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/tasks", response_model=List[TaskResponse])
+async def list_tasks(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    """Lista todas as tarefas com paginação"""
+    try:
+        tasks = await get_tasks(db, skip=skip, limit=limit)
+        return [
+            TaskResponse(
+                id=task.id,
+                status=task.status,
+                priority=task.priority,
+                result=task.result,
+                error=task.error,
+                created_at=task.created_at,
+                completed_at=task.completed_at
+            )
+            for task in tasks
+        ]
+    except Exception as e:
+        logger.error(f"Erro ao listar tarefas: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/tasks/{task_id}", response_model=TaskResponse)
+async def get_task_by_id(task_id: int, db: Session = Depends(get_db)):
+    """Obtém detalhes de uma tarefa específica"""
+    try:
+        task = await get_task(db, task_id)
         if not task:
             raise HTTPException(status_code=404, detail="Task not found")
-            
         return TaskResponse(
             id=task.id,
             status=task.status,
@@ -247,191 +273,135 @@ async def get_task(task_id: int):
             created_at=task.created_at,
             completed_at=task.completed_at
         )
-        
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Erro ao obter tarefa {task_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/tasks/queue")
-async def get_task_queue():
-    """Retorna o estado atual da fila de tarefas"""
-    with task_lock:
-        queue_items = []
-        temp_queue = PriorityQueue()
-        
-        while not task_queue.empty():
-            priority, task_id = task_queue.get()
-            queue_items.append({
-                "task_id": task_id,
-                "priority": -priority  # Converte de volta para prioridade positiva
-            })
-            temp_queue.put((priority, task_id))
-            
-        # Restaura a fila original
-        while not temp_queue.empty():
-            task_queue.put(temp_queue.get())
-            
-        return {
-            "queue_length": len(queue_items),
-            "tasks": queue_items
-        }
-
-@app.get("/metrics")
-async def get_metrics(db: Session = Depends(get_db)):
-    """Retorna métricas detalhadas do sistema"""
-    try:
-        # Coleta métricas do sistema
-        system_metrics = {
-            "cpu_percent": psutil.cpu_percent(),
-            "memory_percent": psutil.virtual_memory().percent,
-            "disk_percent": psutil.disk_usage('/').percent,
-            "active_tasks": len(active_tasks)
-        }
-        
-        # Coleta métricas do browser
-        browser_metrics = browser_manager.get_metrics()
-        
-        # Coleta métricas históricas
-        last_hour = datetime.utcnow() - timedelta(hours=1)
-        historical_metrics = db.query(Metric).filter(
-            Metric.timestamp >= last_hour
-        ).order_by(Metric.timestamp.desc()).all()
-        
-        return {
-            "system": system_metrics,
-            "browser": browser_metrics,
-            "historical": [
-                {
-                    "timestamp": m.timestamp.isoformat(),
-                    "metrics": json.loads(m.metrics)
-                } for m in historical_metrics
-            ]
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/metrics/errors")
-async def get_error_metrics(db: Session = Depends(get_db)):
-    """Retorna métricas de erros"""
-    try:
-        last_hour = datetime.utcnow() - timedelta(hours=1)
-        error_tasks = db.query(Task).filter(
-            Task.status == "failed",
-            Task.created_at >= last_hour
-        ).all()
-        
-        return {
-            "total_errors": len(error_tasks),
-            "errors": [
-                {
-                    "task_id": task.id,
-                    "error": task.error,
-                    "timestamp": task.created_at.isoformat()
-                } for task in error_tasks
-            ]
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/tasks", response_model=List[TaskResponse])
-async def get_tasks(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    try:
-        tasks = db.query(Task).order_by(Task.created_at.desc()).offset(skip).limit(limit).all()
-        return tasks
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/tasks/{task_id}", response_model=TaskResponse)
-async def get_task(task_id: int, db: Session = Depends(get_db)):
-    try:
-        task = db.query(Task).filter(Task.id == task_id).first()
-        if not task:
-            raise HTTPException(status_code=404, detail="Task not found")
-        return task
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
 @app.post("/tasks", response_model=TaskResponse)
-async def create_task(task: TaskCreate, db: Session = Depends(get_db)):
+async def create_new_task(task: TaskCreate, db: Session = Depends(get_db)):
+    """Cria uma nova tarefa"""
     try:
-        db_task = Task(
-            task=task.task,
-            config=task.config,
-            status="pending",
-            priority=task.priority,
-            max_retries=task.max_retries,
-            timeout=task.timeout,
-            tags=task.tags,
-            metadata=task.metadata
+        db_task = await create_task(db, task)
+        logger.info(f"Tarefa {db_task.id} criada com sucesso")
+        return TaskResponse(
+            id=db_task.id,
+            status=db_task.status,
+            priority=db_task.priority,
+            result=db_task.result,
+            error=db_task.error,
+            created_at=db_task.created_at,
+            completed_at=db_task.completed_at
         )
-        db.add(db_task)
-        await db.commit()
-        await db.refresh(db_task)
-        return db_task
     except Exception as e:
+        logger.error(f"Erro ao criar tarefa: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/tasks/{task_id}", response_model=TaskResponse)
-async def update_task(task_id: int, task: TaskUpdate, db: Session = Depends(get_db)):
+async def update_existing_task(task_id: int, task: TaskUpdate, db: Session = Depends(get_db)):
+    """Atualiza uma tarefa existente"""
     try:
-        db_task = db.query(Task).filter(Task.id == task_id).first()
+        db_task = await update_task(db, task_id, task)
         if not db_task:
             raise HTTPException(status_code=404, detail="Task not found")
-        
-        for key, value in task.dict(exclude_unset=True).items():
-            setattr(db_task, key, value)
-            
-        await db.commit()
-        await db.refresh(db_task)
-        return db_task
+        logger.info(f"Tarefa {task_id} atualizada com sucesso")
+        return TaskResponse(
+            id=db_task.id,
+            status=db_task.status,
+            priority=db_task.priority,
+            result=db_task.result,
+            error=db_task.error,
+            created_at=db_task.created_at,
+            completed_at=db_task.completed_at
+        )
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error(f"Erro ao atualizar tarefa {task_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/tasks/{task_id}")
-async def delete_task(task_id: int, db: Session = Depends(get_db)):
+async def delete_existing_task(task_id: int, db: Session = Depends(get_db)):
+    """Remove uma tarefa"""
     try:
-        db_task = db.query(Task).filter(Task.id == task_id).first()
-        if not db_task:
+        success = await delete_task(db, task_id)
+        if not success:
             raise HTTPException(status_code=404, detail="Task not found")
-            
-        db.delete(db_task)
-        await db.commit()
+        logger.info(f"Tarefa {task_id} removida com sucesso")
         return {"status": "success"}
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/browser-sessions", response_model=BrowserSessionResponse)
-async def create_browser_session(session: BrowserSessionCreate, db: Session = Depends(get_db)):
-    try:
-        db_session = await create_browser_session(db=db, session=session)
-        return db_session
-    except Exception as e:
+        logger.error(f"Erro ao deletar tarefa {task_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/browser-sessions", response_model=List[BrowserSessionResponse])
-async def read_browser_sessions(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+async def list_browser_sessions(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    """Lista todas as sessões do navegador com paginação"""
     try:
         sessions = await get_browser_sessions(db, skip=skip, limit=limit)
-        return sessions
+        return [
+            BrowserSessionResponse(
+                id=session.id,
+                task_id=session.task_id,
+                status=session.status,
+                config=session.config,
+                metadata=session.metadata,
+                created_at=session.created_at,
+                updated_at=session.updated_at
+            )
+            for session in sessions
+        ]
     except Exception as e:
+        logger.error(f"Erro ao listar sessões: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/browser-sessions/{session_id}", response_model=BrowserSessionResponse)
-async def read_browser_session(session_id: int, db: Session = Depends(get_db)):
+async def get_browser_session_by_id(session_id: int, db: Session = Depends(get_db)):
+    """Obtém detalhes de uma sessão específica"""
     try:
-        db_session = await get_browser_session(db, session_id=session_id)
-        if not db_session:
+        session = await get_browser_session(db, session_id)
+        if not session:
             raise HTTPException(status_code=404, detail="Browser session not found")
-        return db_session
+        return BrowserSessionResponse(
+            id=session.id,
+            task_id=session.task_id,
+            status=session.status,
+            config=session.config,
+            metadata=session.metadata,
+            created_at=session.created_at,
+            updated_at=session.updated_at
+        )
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error(f"Erro ao obter sessão {session_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/tasks/{task_id}/browser-sessions", response_model=List[BrowserSessionResponse])
-async def read_task_browser_sessions(task_id: int, db: Session = Depends(get_db)):
+async def get_task_browser_sessions(task_id: int, db: Session = Depends(get_db)):
+    """Lista todas as sessões associadas a uma tarefa"""
     try:
-        sessions = await get_browser_sessions_by_task(db, task_id=task_id)
-        return sessions
+        sessions = await get_browser_sessions_by_task(db, task_id)
+        return [
+            BrowserSessionResponse(
+                id=session.id,
+                task_id=session.task_id,
+                status=session.status,
+                config=session.config,
+                metadata=session.metadata,
+                created_at=session.created_at,
+                updated_at=session.updated_at
+            )
+            for session in sessions
+        ]
     except Exception as e:
+        logger.error(f"Erro ao obter sessões da tarefa {task_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.exception_handler(Exception)
@@ -445,6 +415,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 @app.get("/health")
 async def health_check():
+    """Endpoint de verificação de saúde da aplicação"""
     return {"status": "healthy"}
 
 @app.get("/tasks/", response_model=List[TaskResponse])
@@ -467,103 +438,25 @@ async def list_tasks(
         for task in tasks
     ]
 
-@app.get("/tasks/{task_id}", response_model=TaskResponse)
-async def get_task_by_id(task_id: int, db: Session = Depends(get_db)):
-    task = await get_task(db, task_id)
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    return TaskResponse(
-        id=task.id,
-        status=task.status,
-        priority=task.priority,
-        result=task.result,
-        error=task.error,
-        created_at=task.created_at,
-        completed_at=task.completed_at
-    )
-
-@app.post("/tasks/", response_model=TaskResponse)
-async def create_new_task(task: TaskCreate, db: Session = Depends(get_db)):
-    db_task = await create_task(db, task)
-    return TaskResponse(
-        id=db_task.id,
-        status=db_task.status,
-        priority=db_task.priority,
-        result=db_task.result,
-        error=db_task.error,
-        created_at=db_task.created_at,
-        completed_at=db_task.completed_at
-    )
-
-@app.put("/tasks/{task_id}", response_model=TaskResponse)
-async def update_existing_task(task_id: int, task: TaskUpdate, db: Session = Depends(get_db)):
-    db_task = await update_task(db, task_id, task)
-    if not db_task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    return TaskResponse(
-        id=db_task.id,
-        status=db_task.status,
-        priority=db_task.priority,
-        result=db_task.result,
-        error=db_task.error,
-        created_at=db_task.created_at,
-        completed_at=db_task.completed_at
-    )
-
-@app.delete("/tasks/{task_id}")
-async def delete_existing_task(task_id: int, db: Session = Depends(get_db)):
-    success = await delete_task(db, task_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Task not found")
-    return {"status": "success"}
-
-@app.get("/browser-sessions/", response_model=List[BrowserSessionResponse])
-async def list_browser_sessions(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=100),
-    db: Session = Depends(get_db)
-):
-    sessions = await get_browser_sessions(db, skip=skip, limit=limit)
-    return [
-        BrowserSessionResponse(
-            id=session.id,
-            task_id=session.task_id,
-            status=session.status,
-            config=session.config,
-            metadata=session.metadata,
-            created_at=session.created_at,
-            updated_at=session.updated_at
-        )
-        for session in sessions
-    ]
-
-@app.get("/browser-sessions/{session_id}", response_model=BrowserSessionResponse)
-async def get_browser_session_by_id(session_id: int, db: Session = Depends(get_db)):
-    session = await get_browser_session(db, session_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Browser session not found")
-    return BrowserSessionResponse(
-        id=session.id,
-        task_id=session.task_id,
-        status=session.status,
-        config=session.config,
-        metadata=session.metadata,
-        created_at=session.created_at,
-        updated_at=session.updated_at
-    )
-
-@app.get("/tasks/{task_id}/browser-sessions/", response_model=List[BrowserSessionResponse])
-async def get_task_browser_sessions(task_id: int, db: Session = Depends(get_db)):
-    sessions = await get_browser_sessions_by_task(db, task_id)
-    return [
-        BrowserSessionResponse(
-            id=session.id,
-            task_id=session.task_id,
-            status=session.status,
-            config=session.config,
-            metadata=session.metadata,
-            created_at=session.created_at,
-            updated_at=session.updated_at
-        )
-        for session in sessions
-    ] 
+@app.get("/metrics/errors")
+async def get_error_metrics(db: Session = Depends(get_db)):
+    """Retorna métricas de erros"""
+    try:
+        last_hour = datetime.utcnow() - timedelta(hours=1)
+        error_tasks = db.query(Task).filter(
+            Task.status == "failed",
+            Task.created_at >= last_hour
+        ).all()
+        
+        return {
+            "total_errors": len(error_tasks),
+            "errors": [
+                {
+                    "task_id": task.id,
+                    "error": task.error,
+                    "timestamp": task.created_at.isoformat()
+                } for task in error_tasks
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) 
