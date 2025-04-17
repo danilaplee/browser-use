@@ -33,10 +33,16 @@ class LLMConfig(BaseModel):
     model_name: str
     temperature: float = 0.0
 
+    class Config:
+        from_attributes = True
+
 class BrowserConfig(BaseModel):
     headless: bool = True
     disable_security: bool = True
     extra_chromium_args: List[str] = []
+
+    class Config:
+        from_attributes = True
 
 class TaskRequest(BaseModel):
     task: str
@@ -46,6 +52,9 @@ class TaskRequest(BaseModel):
     use_vision: bool = True
     priority: float = 0.0
 
+    class Config:
+        from_attributes = True
+
 class TaskStatus(BaseModel):
     id: int
     status: str
@@ -54,6 +63,9 @@ class TaskStatus(BaseModel):
     created_at: datetime
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
 
 class SystemMetrics(BaseModel):
     cpu_usage: float
@@ -272,8 +284,8 @@ async def run_task(request: TaskRequest):
             db_task = Task(
                 task=request.task,
                 config={
-                    "llm_config": request.llm_config.dict(),
-                    "browser_config": request.browser_config.dict() if request.browser_config else {},
+                    "llm_config": request.llm_config.model_dump(),
+                    "browser_config": request.browser_config.model_dump() if request.browser_config else {},
                     "max_steps": request.max_steps,
                     "use_vision": request.use_vision
                 },
@@ -289,11 +301,11 @@ async def run_task(request: TaskRequest):
             await notify_new_run(
                 task_id=db_task.id,
                 task=request.task,
-                config=request.dict()
+                config=request.model_dump()
             )
 
             # Adicionar à fila
-            await task_queue.put((db_task.id, request.task, request.dict()))
+            await task_queue.put((db_task.id, request.task, request.model_dump()))
 
             return {"task_id": db_task.id}
 
