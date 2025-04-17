@@ -193,8 +193,8 @@ async def calculate_hourly_metrics(db: Session):
 @router.post("/run")
 async def run_task(
     task: str,
-    config: Optional[dict] = None,
     background_tasks: BackgroundTasks,
+    config: Optional[dict] = None,
     db: Session = Depends(get_db)
 ):
     """Executa uma tarefa de automação de navegador"""
