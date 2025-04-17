@@ -118,7 +118,7 @@ RUN pip install --no-cache-dir \
     fastapi==0.104.0 \
     uvicorn==0.24.0 \
     playwright==1.40.0 \
-    sqlalchemy==2.0.23 \
+    sqlalchemy[postgresql]==2.0.23 \
     asyncpg==0.29.0 \
     psycopg2-binary==2.9.9 \
     python-dotenv==1.0.0 \
@@ -132,8 +132,7 @@ RUN pip install --no-cache-dir \
     psutil==5.9.6 \
     alembic==1.12.1 \
     greenlet==3.0.1 \
-    posthog==3.0.0 \
-    asyncpg==0.29.0
+    posthog==3.0.0
 
 # Instalar pacotes LangChain necessários
 RUN pip install --no-cache-dir langchain==0.1.0
