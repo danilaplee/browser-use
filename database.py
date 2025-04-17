@@ -1,54 +1,50 @@
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
-from sqlalchemy import Column, Integer, String, DateTime, JSON, Float
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, JSON, Float, TypeDecorator
+from sqlalchemy.orm import declarative_base, sessionmaker, Session
 import os
 from dotenv import load_dotenv
-import asyncio
 import logging
 from logging_config import setup_logging, log_info, log_error, log_debug
 from datetime import datetime
 from sqlalchemy.sql import select
-from typing import AsyncGenerator
+from contextlib import contextmanager
+import json
 
 # Configuração de logging
 logger = logging.getLogger('browser-use.database')
 
 load_dotenv()
 
-# Converte a URL do banco de dados para usar o driver asyncpg
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    raise ValueError("DATABASE_URL não está definida no arquivo .env")
-
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://")
+# Configuração do banco de dados
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./browser_use.db")
 
 log_info(logger, "Inicializando conexão com o banco de dados", {
-    "database_url": DATABASE_URL.replace(os.getenv("POSTGRES_PASSWORD", ""), "****"),
-    "host": os.getenv("POSTGRES_HOST"),
-    "port": os.getenv("POSTGRES_PORT"),
-    "user": os.getenv("POSTGRES_USER"),
-    "db": os.getenv("POSTGRES_DB"),
-    "ssl": False
+    "database_url": DATABASE_URL,
+    "type": "SQLite"
 })
 
-# Configuração do banco de dados assíncrono
-engine = create_async_engine(
+# Configuração do banco de dados
+engine = create_engine(
     DATABASE_URL,
-    echo=True,
-    pool_pre_ping=True,
-    pool_size=5,
-    max_overflow=10,
-    connect_args={
-        "server_settings": {
-            "application_name": "browser-use"
-        },
-        "ssl": False
-    }
+    connect_args={"check_same_thread": False}  # Necessário para SQLite
 )
-async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
+
+# Classes para converter JSON para string e vice-versa (necessário para SQLite)
+class JSONEncodedDict(TypeDecorator):
+    impl = String
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is not None:
+            return json.dumps(value)
+        return None
+
+    def process_result_value(self, value, dialect):
+        if value is not None:
+            return json.loads(value)
+        return None
 
 # Modelos
 class Task(Base):
@@ -56,9 +52,9 @@ class Task(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     task = Column(String, nullable=False)
-    config = Column(JSON, nullable=True)
+    config = Column(JSONEncodedDict, nullable=True)  # Usando JSONEncodedDict
     status = Column(String, nullable=False)
-    result = Column(JSON, nullable=True)
+    result = Column(JSONEncodedDict, nullable=True)  # Usando JSONEncodedDict
     error = Column(String, nullable=True)
     created_at = Column(DateTime, nullable=False)
     started_at = Column(DateTime, nullable=True)
@@ -84,39 +80,32 @@ class Session(Base):
     created_at = Column(DateTime, nullable=False)
 
 # Função para obter sessão do banco de dados
-async def get_db():
-    log_debug(logger, "Obtendo nova sessão do banco de dados")
-    async with async_session() as session:
-        try:
-            yield session
-            await session.commit()
-            log_debug(logger, "Sessão do banco de dados commitada com sucesso")
-        except Exception as e:
-            log_error(logger, "Erro ao commitar sessão do banco de dados", {
-                "error": str(e)
-            }, exc_info=True)
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
-            log_debug(logger, "Sessão do banco de dados fechada")
+@contextmanager
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise
+    finally:
+        db.close()
 
 # Função para inicializar o banco
-async def init_db():
+def init_db():
     log_info(logger, "Inicializando banco de dados")
     try:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-            log_info(logger, "Tabelas do banco de dados criadas com sucesso")
+        Base.metadata.create_all(bind=engine)
+        log_info(logger, "Tabelas do banco de dados criadas com sucesso")
     except Exception as e:
         log_error(logger, "Erro ao inicializar banco de dados", {
             "error": str(e)
         }, exc_info=True)
         raise
 
-# Funções CRUD para Task
-async def create_task(db: AsyncSession, task_data: dict) -> Task:
-    """Cria uma nova tarefa no banco de dados"""
+# Funções CRUD para Task (versão síncrona)
+def create_task(db: Session, task_data: dict) -> Task:
     try:
         task = Task(
             task=task_data["task"],
@@ -125,8 +114,8 @@ async def create_task(db: AsyncSession, task_data: dict) -> Task:
             created_at=datetime.utcnow()
         )
         db.add(task)
-        await db.commit()
-        await db.refresh(task)
+        db.commit()
+        db.refresh(task)
         return task
     except Exception as e:
         log_error(logger, "Erro ao criar tarefa", {
@@ -134,10 +123,9 @@ async def create_task(db: AsyncSession, task_data: dict) -> Task:
         }, exc_info=True)
         raise
 
-async def get_task(db: AsyncSession, task_id: int) -> Task:
-    """Obtém uma tarefa pelo ID"""
+def get_task(db: Session, task_id: int) -> Task:
     try:
-        return await db.get(Task, task_id)
+        return db.query(Task).filter(Task.id == task_id).first()
     except Exception as e:
         log_error(logger, "Erro ao obter tarefa", {
             "task_id": task_id,
@@ -145,15 +133,14 @@ async def get_task(db: AsyncSession, task_id: int) -> Task:
         }, exc_info=True)
         raise
 
-async def update_task(db: AsyncSession, task_id: int, task_data: dict) -> Task:
-    """Atualiza uma tarefa existente"""
+def update_task(db: Session, task_id: int, task_data: dict) -> Task:
     try:
-        task = await get_task(db, task_id)
+        task = get_task(db, task_id)
         if task:
             for key, value in task_data.items():
                 setattr(task, key, value)
-            await db.commit()
-            await db.refresh(task)
+            db.commit()
+            db.refresh(task)
         return task
     except Exception as e:
         log_error(logger, "Erro ao atualizar tarefa", {
@@ -162,27 +149,9 @@ async def update_task(db: AsyncSession, task_id: int, task_data: dict) -> Task:
         }, exc_info=True)
         raise
 
-async def delete_task(db: AsyncSession, task_id: int) -> bool:
-    """Remove uma tarefa do banco de dados"""
+def get_tasks(db: Session, skip: int = 0, limit: int = 100) -> list[Task]:
     try:
-        task = await get_task(db, task_id)
-        if task:
-            await db.delete(task)
-            await db.commit()
-            return True
-        return False
-    except Exception as e:
-        log_error(logger, "Erro ao deletar tarefa", {
-            "task_id": task_id,
-            "error": str(e)
-        }, exc_info=True)
-        raise
-
-async def get_tasks(db: AsyncSession, skip: int = 0, limit: int = 100) -> list[Task]:
-    """Lista todas as tarefas com paginação"""
-    try:
-        result = await db.execute(select(Task).offset(skip).limit(limit))
-        return result.scalars().all()
+        return db.query(Task).offset(skip).limit(limit).all()
     except Exception as e:
         log_error(logger, "Erro ao listar tarefas", {
             "error": str(e)
@@ -190,21 +159,21 @@ async def get_tasks(db: AsyncSession, skip: int = 0, limit: int = 100) -> list[T
         raise
 
 # Funções para Session
-async def get_sessions(db: AsyncSession, skip: int = 0, limit: int = 100) -> list[Session]:
+def get_sessions(db: Session, skip: int = 0, limit: int = 100) -> list[Session]:
     """Lista todas as sessões com paginação"""
     try:
-        result = await db.execute(select(Session).offset(skip).limit(limit))
-        return result.scalars().all()
+        result = db.query(Session).offset(skip).limit(limit).all()
+        return result
     except Exception as e:
         log_error(logger, "Erro ao listar sessões", {
             "error": str(e)
         }, exc_info=True)
         raise
 
-async def get_session(db: AsyncSession, session_id: int) -> Session:
+def get_session(db: Session, session_id: int) -> Session:
     """Obtém uma sessão pelo ID"""
     try:
-        return await db.get(Session, session_id)
+        return db.query(Session).filter(Session.id == session_id).first()
     except Exception as e:
         log_error(logger, "Erro ao obter sessão", {
             "session_id": session_id,
@@ -212,11 +181,11 @@ async def get_session(db: AsyncSession, session_id: int) -> Session:
         }, exc_info=True)
         raise
 
-async def get_task_sessions(db: AsyncSession, task_id: int) -> list[Session]:
+def get_task_sessions(db: Session, task_id: int) -> list[Session]:
     """Obtém todas as sessões de uma tarefa"""
     try:
-        result = await db.execute(select(Session).where(Session.task_id == task_id))
-        return result.scalars().all()
+        result = db.query(Session).filter(Session.task_id == task_id).all()
+        return result
     except Exception as e:
         log_error(logger, "Erro ao obter sessões da tarefa", {
             "task_id": task_id,
