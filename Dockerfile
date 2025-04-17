@@ -17,14 +17,19 @@ RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80retries && \
     echo 'Acquire::http::Timeout "120";' >> /etc/apt/apt.conf.d/80retries && \
     echo 'Acquire::ftp::Timeout "120";' >> /etc/apt/apt.conf.d/80retries
 
-# Instalar dependências do sistema em etapas
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Limpar cache e instalar dependências básicas
+RUN apt-get clean && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
     ca-certificates \
     wget \
     gnupg \
     && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Instalar dependências do sistema em etapas
+RUN apt-get clean && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
     xvfb \
     libgconf-2-4 \
     libatk1.0-0 \
@@ -44,14 +49,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libnss3 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Instalar apenas fontes essenciais
+RUN apt-get clean && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
     fonts-liberation \
-    fonts-noto-color-emoji \
-    fonts-noto-cjk \
     x11-utils \
     && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Instalar dependências de desenvolvimento
+RUN apt-get clean && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
     make \
     gcc \
     git \
@@ -64,7 +73,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Instalar dependências adicionais do Playwright
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get clean && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
     libnss3 \
     libnspr4 \
     libatk1.0-0 \
