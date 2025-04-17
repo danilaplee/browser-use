@@ -131,7 +131,8 @@ RUN pip install --no-cache-dir \
     httpx==0.25.2 \
     psutil==5.9.6 \
     alembic==1.12.1 \
-    greenlet==3.0.1
+    greenlet==3.0.1 \
+    posthog==3.0.0
 
 # Instalar pacotes LangChain necessários
 RUN pip install --no-cache-dir langchain==0.1.0
@@ -143,8 +144,7 @@ RUN playwright install-deps
 
 # Copiar requirements e instalar dependências Python
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir posthog>=3.0.0
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar o código da aplicação
 COPY . .
