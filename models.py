@@ -23,7 +23,7 @@ class Task(Base):
     next_retry_at = Column(DateTime, nullable=True)
     timeout = Column(Integer, default=300)
     tags = Column(JSON, nullable=True)
-    metadata = Column(JSON, nullable=True)
+    task_metadata = Column(JSON, nullable=True)
 
 class BrowserSession(Base):
     __tablename__ = "browser_sessions"
