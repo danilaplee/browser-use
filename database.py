@@ -1,5 +1,5 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy import Column, Integer, String, DateTime, JSON, Float
 import os
 from dotenv import load_dotenv
@@ -8,27 +8,22 @@ import logging
 from logging_config import setup_logging, log_info, log_error, log_debug
 from datetime import datetime
 from sqlalchemy.sql import select
+from typing import AsyncGenerator
 
 # Configuração de logging
 logger = logging.getLogger('browser-use.database')
 
 load_dotenv()
 
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL").replace("postgresql://", "postgresql+asyncpg://")
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
 
 log_info(logger, "Inicializando conexão com o banco de dados", {
     "database_url": SQLALCHEMY_DATABASE_URL.replace(os.getenv("POSTGRES_PASSWORD", ""), "****")
 })
 
 # Configuração do banco de dados assíncrono
-engine = create_async_engine(
-    SQLALCHEMY_DATABASE_URL,
-    pool_pre_ping=True,
-    pool_size=5,
-    max_overflow=10
-)
-
-async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
+engine = create_async_engine(SQLALCHEMY_DATABASE_URL)
+async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 Base = declarative_base()
 
@@ -68,7 +63,7 @@ class Session(Base):
 # Função para obter sessão do banco de dados
 async def get_db():
     log_debug(logger, "Obtendo nova sessão do banco de dados")
-    async with async_session_maker() as session:
+    async with async_session() as session:
         try:
             yield session
             await session.commit()
