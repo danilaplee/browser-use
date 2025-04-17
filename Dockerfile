@@ -98,13 +98,10 @@ RUN apt-get clean && \
     libxcursor1 \
     libxdamage1 \
     libxext6 \
-    libxfixes3 \
-    libxi6 \
-    libxrandr2 \
-    libxrender1 \
-    libxss1 \
-    libxtst6 \
     && rm -rf /var/lib/apt/lists/*
+
+# Instalar navegadores do Playwright
+RUN playwright install chromium
 
 # Criar diretório para logs
 RUN mkdir -p /var/log/browser-use && \
@@ -137,10 +134,6 @@ RUN pip install --no-cache-dir \
 # Instalar pacotes LangChain necessários
 RUN pip install --no-cache-dir langchain==0.1.0
 RUN pip install --no-cache-dir langchain-openai==0.0.5
-
-# Instalar browsers do Playwright
-RUN playwright install chromium
-RUN playwright install-deps
 
 # Copiar o código da aplicação
 COPY . .
