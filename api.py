@@ -141,69 +141,86 @@ async def collect_metrics_periodically():
 asyncio.create_task(collect_metrics_periodically())
 
 @router.post("/run")
-async def run_task(request: TaskRequest, db: Session = Depends(get_db)):
+async def run_task(request: TaskRequest):
     """Executa uma nova tarefa de automação"""
     try:
         # Criar nova tarefa no banco de dados
-        db_task = Task(
-            task=request.task,
-            config=json.dumps({
-                "llm_config": request.llm_config,
-                "browser_config": request.browser_config,
-                "max_steps": request.max_steps,
-                "use_vision": request.use_vision
-            }),
-            status="pending",
-            created_at=datetime.utcnow()
-        )
-        db.add(db_task)
-        db.commit()
-        db.refresh(db_task)
+        with get_db() as db:
+            db_task = Task(
+                task=request.task,
+                config={
+                    "llm_config": request.llm_config,
+                    "browser_config": request.browser_config,
+                    "max_steps": request.max_steps,
+                    "use_vision": request.use_vision
+                },
+                status="pending",
+                created_at=datetime.utcnow()
+            )
+            db.add(db_task)
+            db.commit()
+            db.refresh(db_task)
 
-        # Adicionar à fila
-        await task_queue.put((db_task.id, request.task, request.dict()))
+            # Adicionar à fila
+            await task_queue.put((db_task.id, request.task, request.dict()))
 
-        return {"task_id": db_task.id}
+            return {"task_id": db_task.id}
 
     except Exception as e:
         log_error(logger, f"Erro ao executar tarefa: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/status/{task_id}", response_model=TaskStatus)
-async def get_task_status(task_id: int, db: Session = Depends(get_db)):
-    """Obtém o status de uma tarefa"""
+@router.get("/status/{task_id}")
+async def get_task_status(task_id: int):
+    """Retorna o status de uma tarefa"""
     try:
-        task = db.query(Task).filter(Task.id == task_id).first()
-        if not task:
-            raise HTTPException(status_code=404, detail="Tarefa não encontrada")
+        with get_db() as db:
+            task = db.query(Task).filter(Task.id == task_id).first()
+            if not task:
+                raise HTTPException(status_code=404, detail="Tarefa não encontrada")
 
-        return TaskStatus(
-            id=task.id,
-            status=task.status,
-            result=json.loads(task.result) if task.result else None,
-            error=task.error,
-            created_at=task.created_at,
-            started_at=task.started_at,
-            completed_at=task.completed_at
-        )
+            return {
+                "task_id": task.id,
+                "status": task.status,
+                "result": task.result if task.status == "completed" else None,
+                "error": task.error if task.status == "failed" else None
+            }
 
     except Exception as e:
         log_error(logger, f"Erro ao obter status da tarefa: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/metrics", response_model=SystemMetrics)
+@router.get("/metrics")
 async def get_metrics():
-    """Obtém métricas do sistema"""
+    """Retorna métricas do sistema"""
     try:
-        max_tasks = calculate_max_tasks()
-        return SystemMetrics(
-            cpu_usage=psutil.cpu_percent(),
-            memory_usage=psutil.virtual_memory().percent,
-            active_tasks=len(running_tasks),
-            queued_tasks=task_queue.qsize(),
-            max_concurrent_tasks=max_tasks,
-            available_slots=max_tasks - len(running_tasks)
-        )
+        with get_db() as db:
+            # Obtém estatísticas do banco de dados
+            total_tasks = db.query(Task).count()
+            completed_tasks = db.query(Task).filter(Task.status == "completed").count()
+            failed_tasks = db.query(Task).filter(Task.status == "failed").count()
+            running_tasks = db.query(Task).filter(Task.status == "running").count()
+
+            # Obtém métricas do sistema
+            cpu_percent = psutil.cpu_percent()
+            memory = psutil.virtual_memory()
+            disk = psutil.disk_usage('/')
+
+            return {
+                "system": {
+                    "cpu_percent": cpu_percent,
+                    "memory_percent": memory.percent,
+                    "disk_percent": disk.percent
+                },
+                "tasks": {
+                    "total": total_tasks,
+                    "completed": completed_tasks,
+                    "failed": failed_tasks,
+                    "running": running_tasks,
+                    "queued": len(task_queue),
+                    "available_slots": MAX_CONCURRENT_TASKS - running_tasks
+                }
+            }
 
     except Exception as e:
         log_error(logger, f"Erro ao obter métricas: {str(e)}")
