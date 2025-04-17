@@ -138,27 +138,29 @@ class Agent(Generic[Context]):
 		self.controller = controller
 		self.sensitive_data = sensitive_data
 
-		self.settings = AgentSettings(
-			use_vision=use_vision,
-			use_vision_for_planner=use_vision_for_planner,
-			save_conversation_path=save_conversation_path,
-			save_conversation_path_encoding=save_conversation_path_encoding,
-			max_failures=max_failures,
-			retry_delay=retry_delay,
-			override_system_message=override_system_message,
-			extend_system_message=extend_system_message,
-			max_input_tokens=max_input_tokens,
-			validate_output=validate_output,
-			message_context=message_context,
-			generate_gif=generate_gif,
-			available_file_paths=available_file_paths,
-			include_attributes=include_attributes,
-			max_actions_per_step=max_actions_per_step,
-			tool_calling_method=tool_calling_method,
-			page_extraction_llm=page_extraction_llm,
-			planner_llm=planner_llm,
-			planner_interval=planner_interval,
-		)
+		# Initialize settings with model_dump
+		settings_data = {
+			"use_vision": use_vision,
+			"use_vision_for_planner": use_vision_for_planner,
+			"save_conversation_path": save_conversation_path,
+			"save_conversation_path_encoding": save_conversation_path_encoding,
+			"max_failures": max_failures,
+			"retry_delay": retry_delay,
+			"override_system_message": override_system_message,
+			"extend_system_message": extend_system_message,
+			"max_input_tokens": max_input_tokens,
+			"validate_output": validate_output,
+			"message_context": message_context,
+			"generate_gif": generate_gif,
+			"available_file_paths": available_file_paths,
+			"include_attributes": include_attributes,
+			"max_actions_per_step": max_actions_per_step,
+			"tool_calling_method": tool_calling_method,
+			"page_extraction_llm": page_extraction_llm,
+			"planner_llm": planner_llm,
+			"planner_interval": planner_interval
+		}
+		self.settings = AgentSettings.model_validate(settings_data)
 
 		# Initialize state
 		self.state = injected_agent_state or AgentState()
