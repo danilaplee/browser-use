@@ -12,6 +12,7 @@ from api import router, collect_metrics_periodically
 from database import engine, Base, get_db, init_db
 from sqlalchemy.ext.asyncio import AsyncSession
 from logging_config import setup_logging, log_info, log_error, log_debug, log_warning
+from contextlib import asynccontextmanager
 
 from browser_use import Agent, BrowserConfig, Browser
 
@@ -21,8 +22,18 @@ logger = logging.getLogger('browser-use.server')
 # Carregar variáveis de ambiente
 load_dotenv()
 
-# Cria tabelas do banco de dados
-Base.metadata.create_all(bind=engine)
+# Configuração do banco de dados
+Base = declarative_base()
+engine = create_async_engine(os.getenv("DATABASE_URL"))
+async_session = async_sessionmaker(engine, expire_on_commit=False)
+
+# Criar tabelas de forma assíncrona
+async def init_models():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+# Inicializar o banco de dados
+asyncio.run(init_models())
 
 # Inicializa o aplicativo FastAPI
 app = FastAPI(title="Browser-use API", description="API para controlar o Browser-use")
