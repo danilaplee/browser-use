@@ -160,7 +160,7 @@ class Agent(Generic[Context]):
 			"planner_llm": planner_llm,
 			"planner_interval": planner_interval
 		}
-		self.settings = AgentSettings.model_validate(settings_data)
+		self.settings = AgentSettings(**settings_data)
 
 		# Initialize state
 		self.state = injected_agent_state or AgentState()
