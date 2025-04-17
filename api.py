@@ -7,7 +7,7 @@ import psutil
 import json
 import logging
 from sqlalchemy.orm import Session
-from database import get_db, Task
+from database import get_db, Task, SessionLocal
 from logging_config import setup_logging, log_info, log_error
 from browser import BrowserManager
 import aiohttp
@@ -215,7 +215,7 @@ async def collect_metrics_periodically():
                         "completed": completed_tasks,
                         "failed": failed_tasks,
                         "running": running_tasks,
-                        "queued": len(task_queue),
+                        "queued": task_queue.qsize(),
                         "available_slots": MAX_CONCURRENT_TASKS - running_tasks
                     }
                 }
@@ -323,7 +323,7 @@ async def get_metrics():
                     "completed": completed_tasks,
                     "failed": failed_tasks,
                     "running": running_tasks,
-                    "queued": len(task_queue),
+                    "queued": task_queue.qsize(),
                     "available_slots": MAX_CONCURRENT_TASKS - running_tasks
                 }
             }
