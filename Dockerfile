@@ -82,8 +82,11 @@ RUN pip install --no-cache-dir \
     passlib[bcrypt] \
     python-multipart \
     asyncpg \
+    greenlet \
     sqlalchemy[asyncio] \
-    sqlalchemy[postgresql]
+    sqlalchemy[postgresql] \
+    psutil \
+    httpx
 
 # Pré-instalar Playwright durante o build
 RUN python -m pip install playwright && \

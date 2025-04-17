@@ -2,7 +2,7 @@ import os
 import logging
 import asyncio
 from typing import Optional, Dict, Any, List
-from fastapi import FastAPI, HTTPException, Body, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Body, BackgroundTasks, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
@@ -12,8 +12,8 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_ollama import ChatOllama
 from pydantic import SecretStr
 from api import router, collect_metrics_periodically
-from database import engine, Base, get_db
-from sqlalchemy.orm import Session
+from database import engine, Base, get_db, init_db
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from browser_use import Agent, BrowserConfig, Browser
 
@@ -114,7 +114,10 @@ def get_llm(model_config: ModelConfig):
         raise HTTPException(status_code=500, detail=f"Erro ao inicializar LLM: {str(e)}")
 
 @app.post("/run", response_model=AgentResponse)
-async def run_agent(request: TaskRequest = Body(...)):
+async def run_agent(
+    request: TaskRequest = Body(...),
+    db: AsyncSession = Depends(get_db)
+):
     try:
         # Configurar o modelo LLM
         llm = get_llm(request.llm_config)
@@ -173,16 +176,15 @@ async def run_agent(request: TaskRequest = Body(...)):
 @app.on_event("startup")
 async def startup_event():
     """Inicializa tarefas em background ao iniciar o servidor"""
-    db = next(get_db())
     try:
+        # Inicializa o banco de dados
+        await init_db()
+        
         # Inicia coleta de métricas
-        background_tasks = BackgroundTasks()
-        background_tasks.add_task(collect_metrics_periodically, db)
+        asyncio.create_task(collect_metrics_periodically())
         logger.info("Tarefas em background iniciadas com sucesso")
     except Exception as e:
         logger.error(f"Erro ao iniciar tarefas em background: {str(e)}")
-    finally:
-        db.close()
 
 @app.get("/health")
 async def health_check():
