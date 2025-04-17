@@ -191,4 +191,20 @@ def get_task_sessions(db: Session, task_id: int) -> list[Session]:
             "task_id": task_id,
             "error": str(e)
         }, exc_info=True)
+        raise
+
+def delete_task(db: Session, task_id: int) -> bool:
+    """Remove uma tarefa do banco de dados"""
+    try:
+        task = get_task(db, task_id)
+        if task:
+            db.delete(task)
+            db.commit()
+            return True
+        return False
+    except Exception as e:
+        log_error(logger, "Erro ao deletar tarefa", {
+            "task_id": task_id,
+            "error": str(e)
+        }, exc_info=True)
         raise 

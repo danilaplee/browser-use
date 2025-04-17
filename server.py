@@ -1,6 +1,5 @@
 import os
 import logging
-import asyncio
 from typing import Optional, Dict, Any, List
 from fastapi import FastAPI, HTTPException, Body, BackgroundTasks, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,10 +9,7 @@ from langchain_openai import ChatOpenAI, AzureChatOpenAI
 from pydantic import SecretStr
 from api import router, collect_metrics_periodically
 from database import engine, Base, get_db, init_db
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import declarative_base
 from logging_config import setup_logging, log_info, log_error, log_debug, log_warning
-from contextlib import asynccontextmanager
 
 from browser_use import Agent, BrowserConfig, Browser
 
@@ -24,52 +20,19 @@ logger = logging.getLogger('browser-use.server')
 load_dotenv()
 
 # Configuração do banco de dados
-Base = declarative_base()
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL não está definida nas variáveis de ambiente")
 
 log_info(logger, f"Conectando ao banco de dados em: {DATABASE_URL}")
-log_info(logger, f"Host do PostgreSQL: {os.getenv('POSTGRES_HOST')}")
-log_info(logger, f"Porta do PostgreSQL: {os.getenv('POSTGRES_PORT')}")
 
-engine = create_async_engine(DATABASE_URL, echo=True)
-async_session = async_sessionmaker(engine, expire_on_commit=False)
-
-# Criar tabelas de forma assíncrona
-async def init_models():
-    try:
-        log_info(logger, "Tentando conectar ao banco de dados...")
-        log_info(logger, f"URL do banco de dados: {DATABASE_URL}")
-        log_info(logger, f"Host do PostgreSQL: {os.getenv('POSTGRES_HOST')}")
-        log_info(logger, f"Porta do PostgreSQL: {os.getenv('POSTGRES_PORT')}")
-        
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        log_info(logger, "Banco de dados inicializado com sucesso")
-    except Exception as e:
-        log_error(logger, f"Erro ao inicializar banco de dados: {str(e)}")
-        raise
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Inicializar o banco de dados
-    await init_models()
-    
-    # Iniciar a coleta periódica de métricas
-    asyncio.create_task(collect_metrics_periodically())
-    log_info(logger, "Coleta periódica de métricas iniciada")
-    
-    yield
-    
-    # Limpeza ao encerrar
-    await engine.dispose()
+# Inicializar o banco de dados
+init_db()
 
 # Inicializa o aplicativo FastAPI
 app = FastAPI(
     title="Browser-use API",
-    description="API para controlar o Browser-use",
-    lifespan=lifespan
+    description="API para controlar o Browser-use"
 )
 
 # Configura CORS
@@ -148,7 +111,7 @@ def get_llm(model_config: ModelConfig):
 @app.post("/run", response_model=AgentResponse)
 async def run_agent(
     request: TaskRequest = Body(...),
-    db: AsyncSession = Depends(get_db)
+    db = Depends(get_db)
 ):
     log_info(logger, "Iniciando execução de agente", {
         "task": request.task,
@@ -199,31 +162,19 @@ async def run_agent(
         # Fechar o navegador após o uso
         await browser.close()
         
-        log_info(logger, "Agente executado com sucesso", {
-            "task": request.task,
-            "success": success,
-            "steps_executed": len(result.history) if result.history else 0
-        })
-        
         return AgentResponse(
             task=request.task,
             result=content,
             success=success,
-            steps_executed=len(result.history) if result.history else 0
+            steps_executed=len(result.history) if result and result.history else 0
         )
-    
+        
     except Exception as e:
-        log_error(logger, "Erro ao executar agente", {
+        log_error(logger, "Erro durante execução do agente", {
             "task": request.task,
             "error": str(e)
         }, exc_info=True)
-        return AgentResponse(
-            task=request.task,
-            result="",
-            success=False,
-            steps_executed=0,
-            error=str(e)
-        )
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/health")
 async def health_check():

@@ -7,7 +7,7 @@ import psutil
 import uuid
 import time
 import aiohttp
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from sqlalchemy import select
 from database import get_db, Task, Metric, init_db, create_task, get_task, update_task, delete_task, get_tasks, get_sessions, get_session, get_task_sessions
 import json
@@ -74,7 +74,7 @@ def calculate_max_tasks():
     return min(max_tasks, 32)
 
 # Função para coletar métricas do sistema
-async def collect_system_metrics(db: AsyncSession):
+async def collect_system_metrics(db: Session):
     metrics = Metric(
         name="system_metrics",
         value=json.dumps({
@@ -82,13 +82,13 @@ async def collect_system_metrics(db: AsyncSession):
             "memory_usage": psutil.virtual_memory().percent,
             "active_tasks": len(running_tasks),
             "queued_tasks": task_queue.qsize(),
-            "completed_tasks": await db.scalar(select(Task).where(Task.status == "completed").count()),
-            "failed_tasks": await db.scalar(select(Task).where(Task.status == "failed").count())
+            "completed_tasks": db.query(Task).filter(Task.status == "completed").count(),
+            "failed_tasks": db.query(Task).filter(Task.status == "failed").count()
         }),
         created_at=datetime.utcnow()
     )
     db.add(metrics)
-    await db.commit()
+    db.commit()
 
 # Função para enviar webhook
 async def send_webhook(task: Task, error_type: str, error_message: str):
@@ -135,7 +135,7 @@ async def send_new_task_notification(task: Task):
 async def run_task(
     task: str,
     config: Optional[dict] = None,
-    db: AsyncSession = Depends(get_db)
+    db: Session = Depends(get_db)
 ):
     """Executa uma tarefa de automação de navegador"""
     try:
@@ -147,8 +147,8 @@ async def run_task(
             created_at=datetime.utcnow()
         )
         db.add(db_task)
-        await db.commit()
-        await db.refresh(db_task)
+        db.commit()
+        db.refresh(db_task)
 
         # Executar tarefa em background
         asyncio.create_task(
@@ -171,10 +171,10 @@ async def run_task(
 @router.get("/tasks/{task_id}")
 async def get_task_status(
     task_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: Session = Depends(get_db)
 ):
     """Obtém o status de uma tarefa"""
-    result = await db.execute(select(Task).where(Task.id == task_id))
+    result = db.execute(select(Task).where(Task.id == task_id))
     task = result.scalar_one_or_none()
     
     if not task:
@@ -191,15 +191,15 @@ async def get_task_status(
     }
 
 @router.get("/status", response_model=SystemStatus)
-async def get_system_status(db: AsyncSession = Depends(get_db)):
+async def get_system_status(db: Session = Depends(get_db)):
     max_tasks = calculate_max_tasks()
     return SystemStatus(
         cpu_usage=psutil.cpu_percent(),
         memory_usage=psutil.virtual_memory().percent,
         active_tasks=len(running_tasks),
         queued_tasks=task_queue.qsize(),
-        completed_tasks=await db.scalar(select(Task).where(Task.status == "completed").count()),
-        failed_tasks=await db.scalar(select(Task).where(Task.status == "failed").count()),
+        completed_tasks=db.query(Task).filter(Task.status == "completed").count(),
+        failed_tasks=db.query(Task).filter(Task.status == "failed").count(),
         max_concurrent_tasks=max_tasks,
         available_slots=max_tasks - len(running_tasks)
     )
@@ -225,7 +225,7 @@ async def list_tasks():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/tasks/{task_id}", response_model=TaskResponse)
-async def get_task_by_id(task_id: str, db: AsyncSession = Depends(get_db)):
+async def get_task_by_id(task_id: str, db: Session = Depends(get_db)):
     try:
         task = await get_task(db, int(task_id))
         if not task:
@@ -236,7 +236,7 @@ async def get_task_by_id(task_id: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/tasks", response_model=TaskResponse)
-async def create_new_task(task: TaskCreate, db: AsyncSession = Depends(get_db)):
+async def create_new_task(task: TaskCreate, db: Session = Depends(get_db)):
     try:
         db_task = await create_task(db, task.dict())
         return db_task
@@ -245,7 +245,7 @@ async def create_new_task(task: TaskCreate, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/tasks/{task_id}", response_model=TaskResponse)
-async def update_existing_task(task_id: str, task: TaskUpdate, db: AsyncSession = Depends(get_db)):
+async def update_existing_task(task_id: str, task: TaskUpdate, db: Session = Depends(get_db)):
     try:
         updated_task = await update_task(db, int(task_id), task.dict())
         if not updated_task:
@@ -273,7 +273,7 @@ async def delete_existing_task(task_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/sessions", response_model=List[SessionResponse])
-async def list_sessions(db: AsyncSession = Depends(get_db)):
+async def list_sessions(db: Session = Depends(get_db)):
     try:
         sessions = await get_sessions(db)
         log_info(logger, f"Listadas {len(sessions)} sessões")
@@ -283,7 +283,7 @@ async def list_sessions(db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/sessions/{session_id}", response_model=SessionResponse)
-async def get_session_by_id(session_id: str, db: AsyncSession = Depends(get_db)):
+async def get_session_by_id(session_id: str, db: Session = Depends(get_db)):
     try:
         session = await get_session(db, int(session_id))
         if not session:
@@ -296,7 +296,7 @@ async def get_session_by_id(session_id: str, db: AsyncSession = Depends(get_db))
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/tasks/{task_id}/sessions", response_model=List[SessionResponse])
-async def get_sessions_by_task(task_id: str, db: AsyncSession = Depends(get_db)):
+async def get_sessions_by_task(task_id: str, db: Session = Depends(get_db)):
     try:
         sessions = await get_task_sessions(db, int(task_id))
         log_info(logger, f"Listadas {len(sessions)} sessões para a tarefa {task_id}")
@@ -318,7 +318,7 @@ async def execute_task(
     task: Task,
     browser: Browser,
     page: Page,
-    db: AsyncSession
+    db: Session
 ):
     try:
         log_info(logger, f"Iniciando execução da tarefa {task_id}")
@@ -330,8 +330,8 @@ async def execute_task(
             status="running"
         )
         db.add(session)
-        await db.commit()
-        await db.refresh(session)
+        db.commit()
+        db.refresh(session)
         
         log_info(logger, f"Sessão {session.session_id} criada para a tarefa {task_id}")
         
@@ -373,12 +373,12 @@ async def execute_task(
                 metrics = await collect_metrics()
                 metrics.session_id = session.session_id
                 db.add(metrics)
-                await db.commit()
+                db.commit()
                 
             # Atualizar status da sessão
             session.status = "completed"
             session.end_time = datetime.now()
-            await db.commit()
+            db.commit()
             
             log_info(logger, f"Tarefa {task_id} concluída com sucesso")
             
@@ -386,7 +386,7 @@ async def execute_task(
             session.status = "failed"
             session.end_time = datetime.now()
             session.error = str(e)
-            await db.commit()
+            db.commit()
             
             log_error(logger, f"Erro na execução da tarefa {task_id}: {str(e)}")
             raise
@@ -429,7 +429,7 @@ async def collect_metrics_periodically():
             try:
                 metrics = await collect_metrics()
                 db.add(metrics)
-                await db.commit()
+                db.commit()
                 
                 log_info(logger, "Métricas coletadas e salvas com sucesso")
                 
