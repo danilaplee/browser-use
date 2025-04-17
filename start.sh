@@ -25,6 +25,59 @@ else
     export DATABASE_URL="postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
 fi
 
+# Verifica se o Python está instalado
+if ! command -v python3 &> /dev/null; then
+    echo "Python não está instalado. Instalando..."
+    sudo apt-get update
+    sudo apt-get install -y python3 python3-pip
+fi
+
+# Verifica se o pip está instalado
+if ! command -v pip3 &> /dev/null; then
+    echo "pip não está instalado. Instalando..."
+    sudo apt-get install -y python3-pip
+fi
+
+# Verifica se o psutil está instalado
+if ! python3 -c "import psutil" &> /dev/null; then
+    echo "psutil não está instalado. Instalando..."
+    pip3 install psutil
+fi
+
+# Verifica se o playwright está instalado
+if ! command -v playwright &> /dev/null; then
+    echo "playwright não está instalado. Instalando..."
+    pip3 install playwright
+    playwright install
+fi
+
+# Verifica se o PostgreSQL está instalado
+if ! command -v psql &> /dev/null; then
+    echo "PostgreSQL não está instalado. Instalando..."
+    sudo apt-get update
+    sudo apt-get install -y postgresql postgresql-contrib
+fi
+
+# Inicia o PostgreSQL
+sudo service postgresql start
+
+# Espera o PostgreSQL iniciar
+sleep 5
+
+# Cria o banco de dados e usuário se não existirem
+sudo -u postgres psql -c "CREATE USER postgres WITH PASSWORD 'postgres' CREATEDB;" || true
+sudo -u postgres psql -c "CREATE DATABASE browser_use OWNER postgres;" || true
+
+# Verifica se as variáveis de ambiente do PostgreSQL estão configuradas
+if [ -z "$POSTGRES_USER" ] || [ -z "$POSTGRES_PASSWORD" ] || [ -z "$POSTGRES_DB" ]; then
+    echo "Erro: Variáveis de ambiente do PostgreSQL não configuradas"
+    echo "Por favor, configure as seguintes variáveis no arquivo .env:"
+    echo "POSTGRES_USER=postgres"
+    echo "POSTGRES_PASSWORD=postgres"
+    echo "POSTGRES_DB=browser_use"
+    exit 1
+fi
+
 # Verificar dependências
 check_dependency() {
     local cmd=$1
@@ -39,19 +92,6 @@ check_dependency() {
 check_dependency python3 python3
 check_dependency pip3 python3-pip
 check_dependency psql postgresql-client
-
-# Verificar dependências Python
-if ! python3 -c "import psutil" &> /dev/null; then
-    echo "psutil não encontrado. Instalando..."
-    pip3 install --user psutil==5.9.6
-fi
-
-if ! command -v playwright &> /dev/null; then
-    echo "playwright não encontrado. Instalando..."
-    pip3 install --user playwright
-    python3 -m playwright install chromium
-    python3 -m playwright install-deps
-fi
 
 # Verificar variáveis de ambiente críticas
 check_env_var() {

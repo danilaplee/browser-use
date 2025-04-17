@@ -2,18 +2,20 @@ from sqlalchemy import create_engine, Column, Integer, String, DateTime, JSON, F
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
+from dotenv import load_dotenv
 
-# Configuração do banco de dados PostgreSQL
-POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "3386C@le")
-POSTGRES_DB = os.getenv("POSTGRES_DB", "browser-use")
-POSTGRES_HOST = os.getenv("POSTGRES_HOST", "browser-use_postgres")
-POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
+load_dotenv()
 
-SQLALCHEMY_DATABASE_URL = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Configuração do banco de dados
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL,
+    pool_pre_ping=True,
+    pool_size=5,
+    max_overflow=10
+)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
