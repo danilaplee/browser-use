@@ -4,10 +4,6 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PATH="/root/.local/bin:$PATH"
-ENV BROWSER_USE_DEBUG=true
-ENV PLAYWRIGHT_BROWSERS_PATH=/tmp/playwright-browsers
-# NOTA: GOOGLE_API_KEY deve ser definida nas configurações do ambiente de deploy
-# ENV GOOGLE_API_KEY=""
 ENV DISPLAY=:99
 
 # Instalar dependências do sistema
@@ -42,20 +38,13 @@ RUN apt-get update && apt-get install -y \
     dbus \
     curl \
     python3-dev \
+    libpq-dev \
+    postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# Criar script xvfb-run se não estiver disponível
-RUN if [ ! -f /usr/bin/xvfb-run ]; then \
-    echo '#!/bin/bash\nXvfb :99 -screen 0 1024x768x24 &\nDISPLAY=:99 "$@"' > /usr/local/bin/xvfb-run && \
-    chmod +x /usr/local/bin/xvfb-run; \
-    fi
-
-# Instalar o Chrome
-RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list \
-    && apt-get update \
-    && apt-get install -y google-chrome-stable \
-    && rm -rf /var/lib/apt/lists/*
+# Criar diretório para logs
+RUN mkdir -p /var/log/browser-use && \
+    chmod 777 /var/log/browser-use
 
 # Configurar diretório de trabalho
 WORKDIR /app
@@ -63,7 +52,7 @@ WORKDIR /app
 # Copiar arquivos necessários
 COPY . .
 
-# Tornar o script de inicialização executável
+# Tornar scripts executáveis
 RUN chmod +x start.sh
 
 # Instalar pip atualizado
@@ -73,16 +62,23 @@ RUN python -m pip install --upgrade pip setuptools wheel
 RUN pip install --no-cache-dir -e .
 
 # Instalar pacotes Python adicionais necessários
-RUN pip install --no-cache-dir fastapi uvicorn langchain-google-genai
+RUN pip install --no-cache-dir fastapi uvicorn langchain-google-genai psycopg2-binary
 
-# Pré-instalar Playwright durante o build com tratamento de erros
+# Pré-instalar Playwright durante o build
 RUN python -m pip install playwright && \
-    echo "Instalando navegadores Playwright..." && \
-    python -m playwright install chromium || \
-    echo "Aviso: Falha na instalação do Playwright durante o build. Será tentado novamente na inicialização."
+    python -m playwright install chromium && \
+    python -m playwright install-deps
 
 # Expor porta para a API
 EXPOSE 8000
+
+# Definir variáveis de ambiente padrão
+ENV HOST=0.0.0.0
+ENV PORT=8000
+ENV DEBUG=false
+ENV PLAYWRIGHT_BROWSERS_PATH=/tmp/playwright-browsers
+ENV BROWSER_USE_DEBUG=true
+ENV BROWSER_USE_HEADLESS=true
 
 # Iniciar a aplicação usando o script
 CMD ["./start.sh"] 

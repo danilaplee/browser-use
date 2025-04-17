@@ -1,16 +1,65 @@
 #!/bin/bash
 
+# Carregar variáveis de ambiente
+if [ -f .env ]; then
+    echo "Carregando variáveis de ambiente do arquivo .env..."
+    export $(cat .env | grep -v '^#' | xargs)
+else
+    echo "Arquivo .env não encontrado. Usando variáveis de ambiente padrão."
+fi
+
 # Configurar variáveis de ambiente para o Playwright
-export PLAYWRIGHT_BROWSERS_PATH=/tmp/playwright-browsers
-export BROWSER_USE_DEBUG=true  # Ativar modo de debug para mais logs
+export PLAYWRIGHT_BROWSERS_PATH=${PLAYWRIGHT_BROWSERS_PATH:-/tmp/playwright-browsers}
+export BROWSER_USE_DEBUG=${BROWSER_USE_DEBUG:-true}
 export DISPLAY=:99
 
-echo "Iniciando script de inicialização com timeout de segurança..."
+echo "Iniciando script de inicialização..."
+
+# Verificar dependências
+check_dependency() {
+    local cmd=$1
+    local pkg=$2
+    if ! command -v $cmd &> /dev/null; then
+        echo "$cmd não encontrado. Instalando $pkg..."
+        apt-get update && apt-get install -y $pkg
+    fi
+}
+
+# Verificar dependências básicas
+check_dependency python3 python3
+check_dependency pip3 python3-pip
+check_dependency psql postgresql-client
+
+# Verificar dependências Python
+if ! python3 -c "import psutil" &> /dev/null; then
+    echo "psutil não encontrado. Instalando..."
+    pip3 install psutil==5.9.6
+fi
+
+if ! command -v playwright &> /dev/null; then
+    echo "playwright não encontrado. Instalando..."
+    pip3 install playwright
+    playwright install chromium
+    playwright install-deps
+fi
+
+# Verificar variáveis de ambiente críticas
+check_env_var() {
+    local var=$1
+    local desc=$2
+    if [ -z "${!var}" ]; then
+        echo "ERRO: $desc ($var) não está definida"
+        exit 1
+    fi
+}
+
+check_env_var POSTGRES_USER "Usuário do PostgreSQL"
+check_env_var POSTGRES_PASSWORD "Senha do PostgreSQL"
+check_env_var POSTGRES_DB "Nome do banco de dados PostgreSQL"
 
 # Verificar se GOOGLE_API_KEY está definida
 if [ -z "$GOOGLE_API_KEY" ]; then
     echo "⚠️ AVISO: GOOGLE_API_KEY não está definida. Isso pode causar falhas se o servidor usar langchain_google_genai."
-    echo "Para solucionar, defina a variável GOOGLE_API_KEY nas configurações do ambiente."
 fi
 
 # Função para executar comando com timeout
@@ -21,11 +70,9 @@ run_with_timeout() {
     
     echo "Executando: $msg"
     
-    # Executar comando em background
     eval "$cmd" &
     local pid=$!
     
-    # Aguardar pelo término do comando com timeout
     local counter=0
     while kill -0 $pid 2>/dev/null; do
         if [ $counter -ge $timeout ]; then
@@ -41,15 +88,14 @@ run_with_timeout() {
     return $?
 }
 
-# Verificar se devemos usar modo headless
+# Verificar modo headless
 if [ "$BROWSER_USE_HEADLESS" = "true" ]; then
-    echo "Modo headless ativado via variável de ambiente. Ignorando Xvfb."
-    echo "Iniciando servidor em modo headless puro..."
+    echo "Modo headless ativado via variável de ambiente."
     exec python3 server.py
     exit 0
 fi
 
-# Verifica se o Xvfb está instalado
+# Configurar Xvfb
 if ! command -v Xvfb &> /dev/null; then
     echo "Xvfb não encontrado. Tentando instalar..."
     apt-get update && apt-get install -y x11-utils || {
@@ -58,74 +104,21 @@ if ! command -v Xvfb &> /dev/null; then
     }
 fi
 
-# Verifica se o xvfb-run está disponível
-if ! command -v xvfb-run &> /dev/null; then
-    echo "xvfb-run não encontrado. Criando script alternativo..."
-    echo '#!/bin/bash
-Xvfb :99 -screen 0 1024x768x24 &
-DISPLAY=:99 "$@"
-' > /usr/local/bin/xvfb-run
-    chmod +x /usr/local/bin/xvfb-run
-fi
-
-# Verificar se os navegadores Playwright já estão instalados
+# Verificar navegadores Playwright
 if [ ! -d "$PLAYWRIGHT_BROWSERS_PATH/chromium-" ]; then
-    echo "Navegadores Playwright não encontrados. Tentando instalar com timeout de 120 segundos..."
+    echo "Navegadores Playwright não encontrados. Instalando..."
     run_with_timeout 120 "python3 -m playwright install chromium" "Instalando chromium"
     
     if [ $? -ne 0 ]; then
-        echo "Timeout ou erro na instalação do Playwright. Usando modo headless puro."
+        echo "Timeout ou erro na instalação do Playwright. Usando modo headless."
         export BROWSER_USE_HEADLESS=true
-        exec python3 server.py
-        exit 0
-    else
-        echo "Instalação do Playwright concluída com sucesso!"
-    fi
-else
-    echo "Navegadores Playwright já instalados em $PLAYWRIGHT_BROWSERS_PATH"
-fi
-
-# Testar se o Xvfb funciona corretamente
-Xvfb -help >/dev/null 2>&1
-if [ $? -ne 0 ]; then
-    echo "Erro ao executar Xvfb. Usando modo headless puro."
-    export BROWSER_USE_HEADLESS=true
-    exec python3 server.py
-    exit 0
-fi
-
-# Verificar se xvfb-run está disponível e funcionando
-if command -v xvfb-run &> /dev/null; then
-    echo "Iniciando servidor com xvfb-run..."
-    
-    # Testar se xvfb-run está funcionando corretamente
-    xvfb-run --server-args="-screen 0 1280x1024x24" echo "Testando xvfb-run" &> /dev/null
-    
-    if [ $? -eq 0 ]; then
-        echo "xvfb-run está funcionando corretamente."
-        # Iniciar o servidor usando xvfb-run com timeout de segurança
-        echo "Iniciando servidor..."
-        exec xvfb-run --server-args="-screen 0 1280x1024x24" python3 server.py
-        exit 0
-    else
-        echo "xvfb-run falhou no teste. Usando modo headless puro."
-        export BROWSER_USE_HEADLESS=true
-        exec python3 server.py
-        exit 0
     fi
 fi
 
-echo "Nenhum método de inicialização X virtual funcionou. Usando modo headless puro."
-export BROWSER_USE_HEADLESS=true
-
-# Executa migrações do banco de dados
+# Executar migrações do banco de dados
 echo "Executando migrações do banco de dados..."
 alembic upgrade head
 
-# Inicia o servidor
+# Iniciar o servidor
 echo "Iniciando servidor..."
-if command -v xvfb-run &> /dev/null; then
-    xvfb-run python3 -m uvicorn api:app --host 0.0.0.0 --port 8000
-else
-    python3 -m uvicorn api:app --host 0.0.0.0 --port 8000
-fi 
+exec uvicorn main:app --host ${HOST:-0.0.0.0} --port ${PORT:-8000} 
