@@ -10,7 +10,8 @@ from langchain_openai import ChatOpenAI, AzureChatOpenAI
 from pydantic import SecretStr
 from api import router, collect_metrics_periodically
 from database import engine, Base, get_db, init_db
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import declarative_base
 from logging_config import setup_logging, log_info, log_error, log_debug, log_warning
 from contextlib import asynccontextmanager
 
