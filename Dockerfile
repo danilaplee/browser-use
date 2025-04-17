@@ -80,7 +80,10 @@ RUN pip install --no-cache-dir \
     pydantic \
     python-jose[cryptography] \
     passlib[bcrypt] \
-    python-multipart
+    python-multipart \
+    asyncpg \
+    sqlalchemy[asyncio] \
+    sqlalchemy[postgresql]
 
 # Pré-instalar Playwright durante o build
 RUN python -m pip install playwright && \

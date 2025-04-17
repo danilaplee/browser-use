@@ -1,3 +1,132 @@
+# Browser Use - Sistema de Automação de Navegador
+
+Sistema de automação de navegador baseado em Playwright com gerenciamento automático de sessões e métricas de desempenho.
+
+## Requisitos
+
+- Python 3.8+
+- PostgreSQL 12+
+- Playwright
+- psutil
+
+## Instalação
+
+1. Clone o repositório:
+```bash
+git clone https://github.com/seu-usuario/browser-use.git
+cd browser-use
+```
+
+2. Crie um ambiente virtual e ative-o:
+```bash
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+venv\Scripts\activate     # Windows
+```
+
+3. Instale as dependências:
+```bash
+pip install -r requirements.txt
+```
+
+4. Configure o arquivo .env:
+```bash
+cp .env.example .env
+# Edite o arquivo .env com suas configurações
+```
+
+5. Instale os navegadores do Playwright:
+```bash
+playwright install
+```
+
+6. Inicie o servidor:
+```bash
+./start.sh
+```
+
+## Uso
+
+### Endpoints Disponíveis
+
+1. **Execução de Tarefas**
+```bash
+curl -X POST http://localhost:8000/run \
+  -H "Content-Type: application/json" \
+  -d '{
+    "task": "navigate",
+    "config": {
+      "url": "https://google.com",
+      "timeout": 30000,
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      }
+    }
+  }'
+```
+
+2. **Métricas do Sistema**
+```bash
+curl http://localhost:8000/metrics
+```
+
+3. **Gerenciamento de Tarefas**
+```bash
+# Listar tarefas
+curl http://localhost:8000/tasks
+
+# Obter detalhes de uma tarefa
+curl http://localhost:8000/tasks/{task_id}
+
+# Criar nova tarefa
+curl -X POST http://localhost:8000/tasks \
+  -H "Content-Type: application/json" \
+  -d '{"task": "navigate", "config": {...}}'
+
+# Atualizar tarefa
+curl -X PUT http://localhost:8000/tasks/{task_id} \
+  -H "Content-Type: application/json" \
+  -d '{"status": "completed"}'
+
+# Deletar tarefa
+curl -X DELETE http://localhost:8000/tasks/{task_id}
+```
+
+## Configurações
+
+O sistema pode ser configurado através do arquivo `.env`. As principais configurações incluem:
+
+- **Banco de Dados**: Configurações do PostgreSQL
+- **Servidor**: Host e porta
+- **Playwright**: Caminho dos navegadores e modo headless
+- **Log**: Nível de log e arquivo de saída
+- **Segurança**: Chave secreta e origens permitidas
+- **Cache**: Tempo de vida e ativação
+- **Sessões**: Timeout e número máximo
+
+## Monitoramento
+
+O sistema coleta métricas detalhadas sobre:
+
+- Tempo de execução de tarefas
+- Uso de recursos (CPU, memória, disco)
+- Estatísticas de sessões
+- Erros e exceções
+- Tempo de resposta da API
+
+## Contribuição
+
+1. Fork o projeto
+2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
+3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
+4. Push para a branch (`git push origin feature/AmazingFeature`)
+5. Abra um Pull Request
+
+## Licença
+
+Este projeto está licenciado sob a licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./static/browser-use-dark.png">
   <source media="(prefers-color-scheme: light)" srcset="./static/browser-use.png">
