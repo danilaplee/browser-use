@@ -17,7 +17,10 @@ load_dotenv()
 
 # Converte a URL do banco de dados para usar o driver asyncpg
 DATABASE_URL = os.getenv("DATABASE_URL")
-if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL não está definida no arquivo .env")
+
+if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://")
 
 log_info(logger, "Inicializando conexão com o banco de dados", {
