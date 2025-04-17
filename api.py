@@ -16,7 +16,7 @@ import traceback
 # Configuração de logging
 logger = logging.getLogger('browser-use.api')
 
-router = APIRouter()
+router = APIRouter(prefix="/api/v1")
 browser_manager = BrowserManager()
 
 # Configurações do sistema
@@ -28,12 +28,23 @@ task_queue = asyncio.Queue(maxsize=MAX_QUEUE_SIZE)
 running_tasks = set()
 
 # Modelos Pydantic
+class LLMConfig(BaseModel):
+    provider: str
+    model_name: str
+    temperature: float = 0.0
+
+class BrowserConfig(BaseModel):
+    headless: bool = True
+    disable_security: bool = True
+    extra_chromium_args: List[str] = []
+
 class TaskRequest(BaseModel):
     task: str
-    llm_config: Dict[str, Any]
-    browser_config: Optional[Dict[str, Any]] = None
+    llm_config: LLMConfig
+    browser_config: Optional[BrowserConfig] = None
     max_steps: int = 20
     use_vision: bool = True
+    priority: float = 0.0
 
 class TaskStatus(BaseModel):
     id: int
@@ -129,8 +140,23 @@ async def execute_task(task_id: int, task: str, config: Dict[str, Any], db: Sess
             db_task.started_at = datetime.utcnow()
             db.commit()
 
+        # Configurar o navegador
+        browser_config = BrowserConfig(
+            headless=config.get("browser_config", {}).get("headless", True),
+            disable_security=config.get("browser_config", {}).get("disable_security", True),
+            extra_chromium_args=config.get("browser_config", {}).get("extra_chromium_args", [])
+        )
+
         # Executar a task
-        result = await browser_manager.execute_task(task, config)
+        result = await browser_manager.execute_task(
+            task=task,
+            config={
+                "llm_config": config.get("llm_config", {}),
+                "browser_config": browser_config.dict(),
+                "max_steps": config.get("max_steps", 20),
+                "use_vision": config.get("use_vision", True)
+            }
+        )
 
         # Atualizar status para completed
         if db_task:
@@ -246,12 +272,13 @@ async def run_task(request: TaskRequest):
             db_task = Task(
                 task=request.task,
                 config={
-                    "llm_config": request.llm_config,
-                    "browser_config": request.browser_config,
+                    "llm_config": request.llm_config.dict(),
+                    "browser_config": request.browser_config.dict() if request.browser_config else {},
                     "max_steps": request.max_steps,
                     "use_vision": request.use_vision
                 },
                 status="pending",
+                priority=request.priority,
                 created_at=datetime.utcnow()
             )
             db.add(db_task)
@@ -275,7 +302,7 @@ async def run_task(request: TaskRequest):
         await send_error_to_webhook(str(e), "run_task")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/status/{task_id}")
+@router.get("/task/{task_id}/status")
 async def get_task_status(task_id: int):
     """Retorna o status de uma tarefa"""
     try:

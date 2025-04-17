@@ -25,7 +25,7 @@ from crud import (
     get_browser_sessions_by_task
 )
 from notifications import webhook_manager
-from api import collect_metrics_periodically
+from api import collect_metrics_periodically, router as api_router
 
 # Configuração de logging
 logger = logging.getLogger('browser-use.main')
@@ -44,6 +44,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Incluir router da API
+app.include_router(api_router)
 
 # Inicialização do banco de dados
 Base.metadata.create_all(bind=settings.engine)
