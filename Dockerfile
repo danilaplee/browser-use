@@ -118,7 +118,7 @@ RUN pip install --no-cache-dir \
     fastapi==0.104.0 \
     uvicorn==0.24.0 \
     playwright==1.40.0 \
-    langchain==0.0.350 \
+    langchain==0.1.0 \
     langchain-openai==0.0.5 \
     langchain-anthropic==0.0.2 \
     langchain-google-genai==0.0.5 \
