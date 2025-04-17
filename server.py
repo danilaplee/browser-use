@@ -7,9 +7,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI, AzureChatOpenAI
-from langchain_anthropic import ChatAnthropic
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_ollama import ChatOllama
 from pydantic import SecretStr
 from api import router, collect_metrics_periodically
 from database import engine, Base, get_db, init_db
@@ -49,7 +46,7 @@ class BrowserConfigModel(BaseModel):
     extra_chromium_args: List[str] = []
 
 class ModelConfig(BaseModel):
-    provider: str = Field(..., description="Provedor do modelo: openai, anthropic, google, ollama")
+    provider: str = Field(..., description="Provedor do modelo: openai, azure")
     model_name: str = Field(..., description="Nome do modelo a ser utilizado")
     api_key: Optional[str] = Field(None, description="API key para o provedor (se necessário)")
     azure_endpoint: Optional[str] = Field(None, description="Endpoint para Azure OpenAI (se provider=azure)")
@@ -92,23 +89,6 @@ def get_llm(model_config: ModelConfig):
                 api_key=SecretStr(model_config.api_key or os.getenv("AZURE_OPENAI_KEY", "")),
                 azure_endpoint=model_config.azure_endpoint or os.getenv("AZURE_OPENAI_ENDPOINT", ""),
                 api_version=model_config.azure_api_version or "2024-10-21"
-            )
-        elif provider == "anthropic":
-            return ChatAnthropic(
-                model_name=model_config.model_name,
-                temperature=model_config.temperature,
-                api_key=model_config.api_key or os.getenv("ANTHROPIC_API_KEY")
-            )
-        elif provider == "google":
-            return ChatGoogleGenerativeAI(
-                model=model_config.model_name,
-                temperature=model_config.temperature,
-                google_api_key=(model_config.api_key or os.getenv("GOOGLE_API_KEY", ""))
-            )
-        elif provider == "ollama":
-            return ChatOllama(
-                model=model_config.model_name,
-                temperature=model_config.temperature
             )
         else:
             raise ValueError(f"Provedor não suportado: {provider}")
