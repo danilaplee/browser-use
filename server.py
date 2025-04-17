@@ -25,7 +25,11 @@ load_dotenv()
 
 # Configuração do banco de dados
 Base = declarative_base()
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:3386C@le@localhost:5432/browser_use")
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL não está definida nas variáveis de ambiente")
+
+log_info(logger, f"Conectando ao banco de dados em: {DATABASE_URL}")
 engine = create_async_engine(DATABASE_URL, echo=True)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
 
@@ -33,6 +37,7 @@ async_session = async_sessionmaker(engine, expire_on_commit=False)
 async def init_models():
     try:
         log_info(logger, "Tentando conectar ao banco de dados...")
+        log_info(logger, f"URL do banco de dados: {DATABASE_URL}")
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         log_info(logger, "Banco de dados inicializado com sucesso")
