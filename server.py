@@ -25,7 +25,7 @@ load_dotenv()
 
 # Configuração do banco de dados
 Base = declarative_base()
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/browser_use")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:3386C@le@browser-use_postgres:5432/browser_use")
 engine = create_async_engine(DATABASE_URL, echo=True)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
 
@@ -34,11 +34,27 @@ async def init_models():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-# Inicializar o banco de dados
-asyncio.run(init_models())
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Inicializar o banco de dados
+    await init_models()
+    log_info(logger, "Banco de dados inicializado com sucesso")
+    
+    # Iniciar a coleta periódica de métricas
+    asyncio.create_task(collect_metrics_periodically())
+    log_info(logger, "Coleta periódica de métricas iniciada")
+    
+    yield
+    
+    # Limpeza ao encerrar
+    await engine.dispose()
 
 # Inicializa o aplicativo FastAPI
-app = FastAPI(title="Browser-use API", description="API para controlar o Browser-use")
+app = FastAPI(
+    title="Browser-use API",
+    description="API para controlar o Browser-use",
+    lifespan=lifespan
+)
 
 # Configura CORS
 app.add_middleware(
@@ -192,22 +208,6 @@ async def run_agent(
             steps_executed=0,
             error=str(e)
         )
-
-@app.on_event("startup")
-async def startup_event():
-    """Evento de inicialização do aplicativo"""
-    try:
-        # Inicializa o banco de dados
-        await init_db()
-        log_info(logger, "Banco de dados inicializado com sucesso")
-        
-        # Inicia a coleta periódica de métricas
-        asyncio.create_task(collect_metrics_periodically())
-        log_info(logger, "Coleta periódica de métricas iniciada")
-        
-    except Exception as e:
-        log_error(logger, f"Erro durante a inicialização: {str(e)}")
-        raise
 
 @app.get("/health")
 async def health_check():
