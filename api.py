@@ -20,7 +20,7 @@ from config import settings
 from models import BrowserMetrics, TaskResponse, Session, SessionResponse, Metrics
 from logging_config import setup_logging, log_info, log_error, log_debug, log_warning
 from fastapi.responses import JSONResponse
-from schemas import TaskCreate, TaskResponse, SessionResponse, BrowserMetricsResponse, MetricsResponse, SystemStatus
+from schemas import TaskCreate, TaskResponse, SessionResponse, BrowserMetricsResponse, MetricsResponse, SystemStatus, TaskUpdate
 
 # Configuração de logging
 logger = logging.getLogger('browser-use.api')
@@ -243,17 +243,15 @@ async def create_new_task(task: TaskCreate, db: AsyncSession = Depends(get_db)):
         log_error(logger, f"Erro ao criar tarefa: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.put("/tasks/{task_id}")
-async def update_existing_task(task_id: str, task: Task):
+@app.put("/tasks/{task_id}", response_model=TaskResponse)
+async def update_existing_task(task_id: str, task: TaskUpdate, db: AsyncSession = Depends(get_db)):
     try:
-        updated_task = await update_task(task_id, task)
+        updated_task = await update_task(db, int(task_id), task.dict())
         if not updated_task:
             log_warning(logger, f"Tarefa não encontrada para atualização: {task_id}")
             raise HTTPException(status_code=404, detail="Tarefa não encontrada")
         log_info(logger, f"Tarefa atualizada: {task_id}")
-        return updated_task
-    except HTTPException:
-        raise
+        return TaskResponse.from_orm(updated_task)
     except Exception as e:
         log_error(logger, f"Erro ao atualizar tarefa {task_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
