@@ -11,6 +11,8 @@ import asyncio
 from queue import PriorityQueue
 import threading
 import logging
+import uvicorn
+from logging_config import setup_logging, log_info, log_error, log_debug, log_warning
 
 from config import settings
 from database import get_db
@@ -23,13 +25,10 @@ from crud import (
     get_browser_sessions_by_task
 )
 from notifications import webhook_manager
+from api import collect_metrics_periodically
 
 # Configuração de logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('browser-use.main')
 
 app = FastAPI(
     title="Browser Automation API",
@@ -72,7 +71,9 @@ async def process_task_queue():
                         await execute_task(task)
                         
         except Exception as e:
-            logger.error(f"Erro ao processar fila de tarefas: {str(e)}")
+            log_error(logger, "Erro ao processar fila de tarefas", {
+                "error": str(e)
+            }, exc_info=True)
             
         await asyncio.sleep(1)
 
@@ -134,7 +135,10 @@ async def execute_task(task: Task):
             )
             
     except Exception as e:
-        logger.error(f"Erro ao executar tarefa {task.id}: {str(e)}")
+        log_error(logger, "Erro ao executar tarefa", {
+            "task_id": task.id,
+            "error": str(e)
+        }, exc_info=True)
         async with get_db() as db:
             task.status = "failed"
             task.error = str(e)
@@ -169,7 +173,9 @@ async def collect_metrics():
             await webhook_manager.send_status(metrics)
             
         except Exception as e:
-            logger.error(f"Erro ao coletar métricas: {str(e)}")
+            log_error(logger, "Erro ao coletar métricas", {
+                "error": str(e)
+            }, exc_info=True)
             
         await asyncio.sleep(3600)  # Coleta a cada hora
 
@@ -178,9 +184,11 @@ async def startup_event():
     """Inicializa o gerenciador de navegador na inicialização da aplicação"""
     try:
         await browser_manager.initialize()
-        logger.info("BrowserManager inicializado com sucesso")
+        log_info(logger, "BrowserManager inicializado com sucesso")
     except Exception as e:
-        logger.error(f"Erro ao inicializar BrowserManager: {str(e)}")
+        log_error(logger, "Erro ao inicializar BrowserManager", {
+            "error": str(e)
+        }, exc_info=True)
         raise
 
 @app.on_event("shutdown")
@@ -188,9 +196,11 @@ async def shutdown_event():
     """Fecha o gerenciador de navegador no encerramento da aplicação"""
     try:
         await browser_manager.close()
-        logger.info("BrowserManager encerrado com sucesso")
+        log_info(logger, "BrowserManager encerrado com sucesso")
     except Exception as e:
-        logger.error(f"Erro ao encerrar BrowserManager: {str(e)}")
+        log_error(logger, "Erro ao encerrar BrowserManager", {
+            "error": str(e)
+        }, exc_info=True)
 
 @app.post("/run")
 async def run_task(task: TaskCreate, db: Session = Depends(get_db)):
@@ -198,11 +208,15 @@ async def run_task(task: TaskCreate, db: Session = Depends(get_db)):
     try:
         # Cria a tarefa no banco de dados
         db_task = await create_task(db, task)
-        logger.info(f"Tarefa {db_task.id} criada com sucesso")
+        log_info(logger, "Tarefa criada com sucesso", {
+            "task_id": db_task.id
+        })
         
         # Executa a tarefa usando o pool de sessões
         result = await browser_manager.execute_task(task.task, task.config)
-        logger.info(f"Tarefa {db_task.id} executada com sucesso")
+        log_info(logger, "Tarefa executada com sucesso", {
+            "task_id": db_task.id
+        })
         
         # Atualiza o status e resultado da tarefa
         db_task.status = "completed"
@@ -220,7 +234,9 @@ async def run_task(task: TaskCreate, db: Session = Depends(get_db)):
             completed_at=db_task.completed_at
         )
     except Exception as e:
-        logger.error(f"Erro ao executar tarefa: {str(e)}")
+        log_error(logger, "Erro ao executar tarefa", {
+            "error": str(e)
+        }, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/metrics")
@@ -229,7 +245,9 @@ async def get_metrics():
     try:
         return await browser_manager.get_metrics()
     except Exception as e:
-        logger.error(f"Erro ao obter métricas: {str(e)}")
+        log_error(logger, "Erro ao obter métricas", {
+            "error": str(e)
+        }, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/tasks", response_model=List[TaskResponse])
@@ -254,7 +272,9 @@ async def list_tasks(
             for task in tasks
         ]
     except Exception as e:
-        logger.error(f"Erro ao listar tarefas: {str(e)}")
+        log_error(logger, "Erro ao listar tarefas", {
+            "error": str(e)
+        }, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/tasks/{task_id}", response_model=TaskResponse)
@@ -276,7 +296,10 @@ async def get_task_by_id(task_id: int, db: Session = Depends(get_db)):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Erro ao obter tarefa {task_id}: {str(e)}")
+        log_error(logger, "Erro ao obter tarefa", {
+            "task_id": task_id,
+            "error": str(e)
+        }, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/tasks", response_model=TaskResponse)
@@ -284,7 +307,9 @@ async def create_new_task(task: TaskCreate, db: Session = Depends(get_db)):
     """Cria uma nova tarefa"""
     try:
         db_task = await create_task(db, task)
-        logger.info(f"Tarefa {db_task.id} criada com sucesso")
+        log_info(logger, "Tarefa criada com sucesso", {
+            "task_id": db_task.id
+        })
         return TaskResponse(
             id=db_task.id,
             status=db_task.status,
@@ -295,7 +320,9 @@ async def create_new_task(task: TaskCreate, db: Session = Depends(get_db)):
             completed_at=db_task.completed_at
         )
     except Exception as e:
-        logger.error(f"Erro ao criar tarefa: {str(e)}")
+        log_error(logger, "Erro ao criar tarefa", {
+            "error": str(e)
+        }, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/tasks/{task_id}", response_model=TaskResponse)
@@ -305,7 +332,9 @@ async def update_existing_task(task_id: int, task: TaskUpdate, db: Session = Dep
         db_task = await update_task(db, task_id, task)
         if not db_task:
             raise HTTPException(status_code=404, detail="Task not found")
-        logger.info(f"Tarefa {task_id} atualizada com sucesso")
+        log_info(logger, "Tarefa atualizada com sucesso", {
+            "task_id": task_id
+        })
         return TaskResponse(
             id=db_task.id,
             status=db_task.status,
@@ -318,7 +347,10 @@ async def update_existing_task(task_id: int, task: TaskUpdate, db: Session = Dep
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Erro ao atualizar tarefa {task_id}: {str(e)}")
+        log_error(logger, "Erro ao atualizar tarefa", {
+            "task_id": task_id,
+            "error": str(e)
+        }, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/tasks/{task_id}")
@@ -328,12 +360,17 @@ async def delete_existing_task(task_id: int, db: Session = Depends(get_db)):
         success = await delete_task(db, task_id)
         if not success:
             raise HTTPException(status_code=404, detail="Task not found")
-        logger.info(f"Tarefa {task_id} removida com sucesso")
+        log_info(logger, "Tarefa removida com sucesso", {
+            "task_id": task_id
+        })
         return {"status": "success"}
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Erro ao deletar tarefa {task_id}: {str(e)}")
+        log_error(logger, "Erro ao deletar tarefa", {
+            "task_id": task_id,
+            "error": str(e)
+        }, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/browser-sessions", response_model=List[BrowserSessionResponse])
@@ -358,7 +395,9 @@ async def list_browser_sessions(
             for session in sessions
         ]
     except Exception as e:
-        logger.error(f"Erro ao listar sessões: {str(e)}")
+        log_error(logger, "Erro ao listar sessões", {
+            "error": str(e)
+        }, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/browser-sessions/{session_id}", response_model=BrowserSessionResponse)
@@ -380,7 +419,10 @@ async def get_browser_session_by_id(session_id: int, db: Session = Depends(get_d
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Erro ao obter sessão {session_id}: {str(e)}")
+        log_error(logger, "Erro ao obter sessão", {
+            "session_id": session_id,
+            "error": str(e)
+        }, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/tasks/{task_id}/browser-sessions", response_model=List[BrowserSessionResponse])
@@ -401,13 +443,18 @@ async def get_task_browser_sessions(task_id: int, db: Session = Depends(get_db))
             for session in sessions
         ]
     except Exception as e:
-        logger.error(f"Erro ao obter sessões da tarefa {task_id}: {str(e)}")
+        log_error(logger, "Erro ao obter sessões da tarefa", {
+            "task_id": task_id,
+            "error": str(e)
+        }, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Tratamento global de exceções"""
-    logger.error(f"Erro não tratado: {str(exc)}")
+    log_error(logger, "Erro não tratado", {
+        "error": str(exc)
+    }, exc_info=True)
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal server error"}
@@ -459,4 +506,35 @@ async def get_error_metrics(db: Session = Depends(get_db)):
             ]
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) 
+        log_error(logger, "Erro ao obter métricas de erros", {
+            "error": str(e)
+        }, exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+async def main():
+    """Função principal que inicia o servidor e o coletor de métricas"""
+    try:
+        log_info(logger, "Iniciando aplicação")
+        
+        # Inicia o coletor de métricas em background
+        log_info(logger, "Iniciando coletor de métricas")
+        asyncio.create_task(collect_metrics_periodically())
+        
+        # Inicia o servidor FastAPI
+        log_info(logger, "Iniciando servidor FastAPI")
+        config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="info")
+        server = uvicorn.Server(config)
+        await server.serve()
+        
+    except Exception as e:
+        log_error(logger, "Erro ao iniciar aplicação", {
+            "error": str(e)
+        }, exc_info=True)
+        raise
+
+if __name__ == "__main__":
+    # Configura o logging
+    setup_logging()
+    
+    # Executa a aplicação
+    asyncio.run(main()) 

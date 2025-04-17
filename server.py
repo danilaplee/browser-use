@@ -12,15 +12,14 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_ollama import ChatOllama
 from pydantic import SecretStr
 from api import router, collect_metrics_periodically
-from database import engine, Base, get_db, init_db
+from database import engine, Base, get_db, init_db_sync
 from sqlalchemy.ext.asyncio import AsyncSession
+from logging_config import setup_logging, log_info, log_error, log_debug, log_warning
 
 from browser_use import Agent, BrowserConfig, Browser
 
 # Configuração de logging
-from browser_use.logging_config import setup_logging
-setup_logging()
-logger = logging.getLogger("browser-use-api")
+logger = logging.getLogger('browser-use.server')
 
 # Carregar variáveis de ambiente
 load_dotenv()
@@ -75,6 +74,10 @@ class AgentResponse(BaseModel):
 def get_llm(model_config: ModelConfig):
     try:
         provider = model_config.provider.lower()
+        log_info(logger, "Inicializando LLM", {
+            "provider": provider,
+            "model": model_config.model_name
+        })
         
         if provider == "openai":
             return ChatOpenAI(
@@ -110,7 +113,11 @@ def get_llm(model_config: ModelConfig):
         else:
             raise ValueError(f"Provedor não suportado: {provider}")
     except Exception as e:
-        logger.error(f"Erro ao inicializar LLM: {str(e)}")
+        log_error(logger, "Erro ao inicializar LLM", {
+            "provider": model_config.provider,
+            "model": model_config.model_name,
+            "error": str(e)
+        }, exc_info=True)
         raise HTTPException(status_code=500, detail=f"Erro ao inicializar LLM: {str(e)}")
 
 @app.post("/run", response_model=AgentResponse)
@@ -118,6 +125,12 @@ async def run_agent(
     request: TaskRequest = Body(...),
     db: AsyncSession = Depends(get_db)
 ):
+    log_info(logger, "Iniciando execução de agente", {
+        "task": request.task,
+        "provider": request.llm_config.provider,
+        "model": request.llm_config.model_name
+    })
+    
     try:
         # Configurar o modelo LLM
         llm = get_llm(request.llm_config)
@@ -128,6 +141,11 @@ async def run_agent(
             disable_security=request.browser_config.disable_security if request.browser_config else True,
             extra_chromium_args=request.browser_config.extra_chromium_args if request.browser_config else []
         )
+        
+        log_debug(logger, "Configuração do navegador", {
+            "headless": browser_config.headless,
+            "disable_security": browser_config.disable_security
+        })
         
         # Inicializar o navegador
         browser = Browser(config=browser_config)
@@ -156,6 +174,12 @@ async def run_agent(
         # Fechar o navegador após o uso
         await browser.close()
         
+        log_info(logger, "Agente executado com sucesso", {
+            "task": request.task,
+            "success": success,
+            "steps_executed": len(result.history) if result.history else 0
+        })
+        
         return AgentResponse(
             task=request.task,
             result=content,
@@ -164,7 +188,10 @@ async def run_agent(
         )
     
     except Exception as e:
-        logger.error(f"Erro ao executar agente: {str(e)}")
+        log_error(logger, "Erro ao executar agente", {
+            "task": request.task,
+            "error": str(e)
+        }, exc_info=True)
         return AgentResponse(
             task=request.task,
             result="",
@@ -176,19 +203,23 @@ async def run_agent(
 @app.on_event("startup")
 async def startup_event():
     """Inicializa tarefas em background ao iniciar o servidor"""
+    log_info(logger, "Iniciando evento de startup")
     try:
-        # Inicializa o banco de dados
-        await init_db()
+        # Inicializa o banco de dados de forma síncrona
+        init_db_sync()
         
         # Inicia coleta de métricas
         asyncio.create_task(collect_metrics_periodically())
-        logger.info("Tarefas em background iniciadas com sucesso")
+        log_info(logger, "Tarefas em background iniciadas com sucesso")
     except Exception as e:
-        logger.error(f"Erro ao iniciar tarefas em background: {str(e)}")
+        log_error(logger, "Erro ao iniciar tarefas em background", {
+            "error": str(e)
+        }, exc_info=True)
 
 @app.get("/health")
 async def health_check():
     """Endpoint para verificar a saúde da API"""
+    log_debug(logger, "Verificando saúde da API")
     return {"status": "healthy"}
 
 if __name__ == "__main__":
@@ -196,6 +227,11 @@ if __name__ == "__main__":
     
     # Obter porta do ambiente ou usar 8000 como padrão
     port = int(os.getenv("PORT", 8000))
+    
+    log_info(logger, "Iniciando servidor FastAPI", {
+        "host": "0.0.0.0",
+        "port": port
+    })
     
     # Iniciar servidor
     uvicorn.run("server:app", host="0.0.0.0", port=port, log_level="info") 

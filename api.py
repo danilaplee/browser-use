@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, FastAPI, Request
 from pydantic import BaseModel
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
@@ -9,7 +9,7 @@ import time
 import aiohttp
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from database import get_db, Task, Metric, init_db
+from database import get_db, Task, Metric, init_db, create_task, get_task, update_task, delete_task, get_tasks, get_sessions, get_session, get_task_sessions
 import json
 import os
 import statistics
@@ -17,13 +17,17 @@ import httpx
 import logging
 from browser import BrowserManager
 from config import settings
+from models import BrowserMetrics, TaskResponse, Session, SessionResponse, Metrics
+from logging_config import setup_logging, log_info, log_error, log_debug, log_warning
+from fastapi.responses import JSONResponse
 
 # Configuração de logging
-logging.basicConfig(level=os.getenv('LOG_LEVEL', 'INFO'))
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('browser-use.api')
 
 router = APIRouter()
 browser_manager = BrowserManager()
+
+app = FastAPI()
 
 # Configurações do sistema
 MAX_CONCURRENT_TASKS = 2  # Será ajustado dinamicamente baseado nos recursos
@@ -37,12 +41,6 @@ STATUS_URL = os.getenv("STATUS_URL", "https://vrautomatize-n8n.snrhk1.easypanel.
 class TaskRequest(BaseModel):
     task: str
     config: Optional[Dict[str, Any]] = None
-
-class TaskResponse(BaseModel):
-    task_id: str
-    status: str
-    result: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
 
 class SystemStatus(BaseModel):
     cpu_usage: float
@@ -204,72 +202,350 @@ async def get_system_status(db: AsyncSession = Depends(get_db)):
         available_slots=max_tasks - len(running_tasks)
     )
 
-@router.get("/metrics")
-async def get_metrics(
-    limit: int = 100,
-    db: AsyncSession = Depends(get_db)
-):
-    """Obtém as últimas métricas do sistema"""
-    result = await db.execute(
-        select(Metric)
-        .order_by(Metric.created_at.desc())
-        .limit(limit)
+@app.get("/metrics")
+async def get_metrics():
+    try:
+        metrics = await collect_metrics()
+        log_info(logger, "Métricas coletadas com sucesso")
+        return metrics
+    except Exception as e:
+        log_error(logger, f"Erro ao coletar métricas: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/tasks")
+async def list_tasks():
+    try:
+        tasks = await get_tasks()
+        log_info(logger, f"Listadas {len(tasks)} tarefas")
+        return tasks
+    except Exception as e:
+        log_error(logger, f"Erro ao listar tarefas: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/tasks/{task_id}")
+async def get_task_by_id(task_id: str):
+    try:
+        task = await get_task(task_id)
+        if not task:
+            log_warning(logger, f"Tarefa não encontrada: {task_id}")
+            raise HTTPException(status_code=404, detail="Tarefa não encontrada")
+        log_info(logger, f"Tarefa recuperada: {task_id}")
+        return task
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_error(logger, f"Erro ao recuperar tarefa {task_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/tasks")
+async def create_new_task(task: Task):
+    try:
+        new_task = await create_task(task)
+        log_info(logger, f"Nova tarefa criada: {new_task.task_id}")
+        return new_task
+    except Exception as e:
+        log_error(logger, f"Erro ao criar tarefa: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/tasks/{task_id}")
+async def update_existing_task(task_id: str, task: Task):
+    try:
+        updated_task = await update_task(task_id, task)
+        if not updated_task:
+            log_warning(logger, f"Tarefa não encontrada para atualização: {task_id}")
+            raise HTTPException(status_code=404, detail="Tarefa não encontrada")
+        log_info(logger, f"Tarefa atualizada: {task_id}")
+        return updated_task
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_error(logger, f"Erro ao atualizar tarefa {task_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/tasks/{task_id}")
+async def delete_existing_task(task_id: str):
+    try:
+        success = await delete_task(task_id)
+        if not success:
+            log_warning(logger, f"Tarefa não encontrada para exclusão: {task_id}")
+            raise HTTPException(status_code=404, detail="Tarefa não encontrada")
+        log_info(logger, f"Tarefa excluída: {task_id}")
+        return {"message": "Tarefa excluída com sucesso"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_error(logger, f"Erro ao excluir tarefa {task_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/sessions")
+async def list_sessions():
+    try:
+        sessions = await get_sessions()
+        log_info(logger, f"Listadas {len(sessions)} sessões")
+        return sessions
+    except Exception as e:
+        log_error(logger, f"Erro ao listar sessões: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/sessions/{session_id}")
+async def get_session_by_id(session_id: str):
+    try:
+        session = await get_session(session_id)
+        if not session:
+            log_warning(logger, f"Sessão não encontrada: {session_id}")
+            raise HTTPException(status_code=404, detail="Sessão não encontrada")
+        log_info(logger, f"Sessão recuperada: {session_id}")
+        return session
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_error(logger, f"Erro ao recuperar sessão {session_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/tasks/{task_id}/sessions")
+async def get_sessions_by_task(task_id: str):
+    try:
+        sessions = await get_task_sessions(task_id)
+        log_info(logger, f"Listadas {len(sessions)} sessões para a tarefa {task_id}")
+        return sessions
+    except Exception as e:
+        log_error(logger, f"Erro ao listar sessões da tarefa {task_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    log_error(logger, f"Erro não tratado: {str(exc)}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Ocorreu um erro interno no servidor"}
     )
-    metrics = result.scalars().all()
-    
-    return {
-        "metrics": [
-            {
-                "name": m.name,
-                "value": m.value,
-                "created_at": m.created_at
-            }
-            for m in metrics
-        ]
-    }
 
 async def execute_task(
-    task_id: int,
-    task: str,
-    config: dict,
+    task_id: str,
+    task: Task,
+    browser: Browser,
+    page: Page,
     db: AsyncSession
 ):
-    """Executa uma tarefa de automação"""
     try:
-        # Atualizar status da tarefa
-        result = await db.execute(select(Task).where(Task.id == task_id))
-        db_task = result.scalar_one_or_none()
-        if not db_task:
-            return
+        log_info(logger, f"Iniciando execução da tarefa {task_id}")
         
-        db_task.status = "running"
-        db_task.started_at = datetime.utcnow()
+        # Criar nova sessão
+        session = Session(
+            task_id=task_id,
+            start_time=datetime.now(),
+            status="running"
+        )
+        db.add(session)
         await db.commit()
-
-        # Executar tarefa usando o BrowserManager
-        result = await browser_manager.execute_task(task, config)
-
-        # Atualizar resultado da tarefa
-        db_task.status = "completed"
-        db_task.result = json.dumps(result)
-        db_task.completed_at = datetime.utcnow()
-        await db.commit()
-
+        await db.refresh(session)
+        
+        log_info(logger, f"Sessão {session.session_id} criada para a tarefa {task_id}")
+        
+        try:
+            # Executar ações
+            for action in task.actions:
+                log_info(logger, f"Executando ação: {action.action_type}")
+                
+                if action.action_type == "navigate":
+                    await page.goto(action.url)
+                    log_info(logger, f"Navegado para {action.url}")
+                    
+                elif action.action_type == "click":
+                    await page.click(action.selector)
+                    log_info(logger, f"Clicado no elemento {action.selector}")
+                    
+                elif action.action_type == "type":
+                    await page.type(action.selector, action.text)
+                    log_info(logger, f"Digitado texto no elemento {action.selector}")
+                    
+                elif action.action_type == "wait":
+                    await page.wait_for_selector(action.selector)
+                    log_info(logger, f"Aguardado elemento {action.selector}")
+                    
+                elif action.action_type == "screenshot":
+                    screenshot_path = f"screenshots/{session.session_id}_{action.name}.png"
+                    await page.screenshot(path=screenshot_path)
+                    log_info(logger, f"Capturado screenshot: {screenshot_path}")
+                    
+                elif action.action_type == "extract":
+                    element = await page.query_selector(action.selector)
+                    if element:
+                        text = await element.text_content()
+                        log_info(logger, f"Extraído texto do elemento {action.selector}")
+                    else:
+                        log_warning(logger, f"Elemento não encontrado: {action.selector}")
+                        
+                # Coletar métricas após cada ação
+                metrics = await collect_metrics()
+                metrics.session_id = session.session_id
+                db.add(metrics)
+                await db.commit()
+                
+            # Atualizar status da sessão
+            session.status = "completed"
+            session.end_time = datetime.now()
+            await db.commit()
+            
+            log_info(logger, f"Tarefa {task_id} concluída com sucesso")
+            
+        except Exception as e:
+            session.status = "failed"
+            session.end_time = datetime.now()
+            session.error = str(e)
+            await db.commit()
+            
+            log_error(logger, f"Erro na execução da tarefa {task_id}: {str(e)}")
+            raise
+            
     except Exception as e:
-        # Atualizar erro da tarefa
-        db_task.status = "failed"
-        db_task.error = str(e)
-        db_task.completed_at = datetime.utcnow()
-        await db.commit()
+        log_error(logger, f"Erro fatal na execução da tarefa {task_id}: {str(e)}")
+        raise
+
+async def collect_metrics() -> dict:
+    """Coleta métricas do sistema e do navegador"""
+    try:
+        log_info(logger, "Iniciando coleta de métricas")
+        
+        # Coletar métricas do sistema
+        system_metrics = await get_system_metrics()
+        
+        # Coletar métricas do navegador
+        browser_metrics = await get_browser_metrics()
+        
+        # Combinar métricas
+        metrics = {
+            "system": system_metrics,
+            "browser": browser_metrics,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        log_info(logger, "Métricas coletadas com sucesso")
+        return metrics
+        
+    except Exception as e:
+        log_error(logger, f"Erro ao coletar métricas: {str(e)}")
         raise
 
 async def collect_metrics_periodically():
-    """Coleta métricas periodicamente"""
-    while True:
-        try:
-            async with async_session_maker() as db:
-                await collect_system_metrics(db)
-            await asyncio.sleep(60)  # Coleta a cada minuto
-        except Exception as e:
-            logger.error(f"Erro ao coletar métricas: {str(e)}")
-            await asyncio.sleep(60) 
+    """Coleta métricas periodicamente e salva no banco de dados"""
+    try:
+        log_info(logger, "Iniciando coleta periódica de métricas")
+        
+        while True:
+            try:
+                metrics = await collect_metrics()
+                db.add(metrics)
+                await db.commit()
+                
+                log_info(logger, "Métricas coletadas e salvas com sucesso")
+                
+            except Exception as e:
+                log_error(logger, f"Erro ao coletar métricas periodicamente: {str(e)}")
+                
+            await asyncio.sleep(60)  # Coletar a cada 1 minuto
+            
+    except Exception as e:
+        log_error(logger, f"Erro fatal na coleta periódica de métricas: {str(e)}")
+        raise
+
+async def get_system_metrics() -> dict:
+    """Coleta métricas do sistema"""
+    try:
+        log_info(logger, "Iniciando coleta de métricas do sistema")
+        
+        # Coletar métricas de CPU
+        cpu_percent = psutil.cpu_percent(interval=1)
+        cpu_count = psutil.cpu_count()
+        cpu_freq = psutil.cpu_freq()
+        
+        # Coletar métricas de memória
+        memory = psutil.virtual_memory()
+        swap = psutil.swap_memory()
+        
+        # Coletar métricas de disco
+        disk = psutil.disk_usage('/')
+        disk_io = psutil.disk_io_counters()
+        
+        metrics = {
+            "cpu": {
+                "percent": cpu_percent,
+                "count": cpu_count,
+                "frequency": {
+                    "current": cpu_freq.current,
+                    "min": cpu_freq.min,
+                    "max": cpu_freq.max
+                }
+            },
+            "memory": {
+                "total": memory.total,
+                "available": memory.available,
+                "used": memory.used,
+                "percent": memory.percent,
+                "swap": {
+                    "total": swap.total,
+                    "used": swap.used,
+                    "free": swap.free,
+                    "percent": swap.percent
+                }
+            },
+            "disk": {
+                "total": disk.total,
+                "used": disk.used,
+                "free": disk.free,
+                "percent": disk.percent,
+                "io": {
+                    "read_bytes": disk_io.read_bytes,
+                    "write_bytes": disk_io.write_bytes,
+                    "read_count": disk_io.read_count,
+                    "write_count": disk_io.write_count
+                }
+            }
+        }
+        
+        log_info(logger, "Métricas do sistema coletadas com sucesso")
+        return metrics
+        
+    except Exception as e:
+        log_error(logger, f"Erro ao coletar métricas do sistema: {str(e)}")
+        raise
+
+async def get_browser_metrics() -> dict:
+    """Coleta métricas do navegador"""
+    try:
+        log_info(logger, "Iniciando coleta de métricas do navegador")
+        
+        # Obter lista de processos do navegador
+        browser_processes = []
+        for proc in psutil.process_iter(['pid', 'name', 'memory_info', 'cpu_percent']):
+            try:
+                if 'chrome' in proc.info['name'].lower() or 'firefox' in proc.info['name'].lower():
+                    browser_processes.append(proc)
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        
+        # Calcular métricas totais
+        total_memory = sum(proc.info['memory_info'].rss for proc in browser_processes)
+        total_cpu = sum(proc.info['cpu_percent'] for proc in browser_processes)
+        
+        metrics = {
+            "process_count": len(browser_processes),
+            "total_memory_usage": total_memory,
+            "total_cpu_usage": total_cpu,
+            "processes": [
+                {
+                    "pid": proc.info['pid'],
+                    "name": proc.info['name'],
+                    "memory_usage": proc.info['memory_info'].rss,
+                    "cpu_usage": proc.info['cpu_percent']
+                }
+                for proc in browser_processes
+            ]
+        }
+        
+        log_info(logger, "Métricas do navegador coletadas com sucesso")
+        return metrics
+        
+    except Exception as e:
+        log_error(logger, f"Erro ao coletar métricas do navegador: {str(e)}")
+        raise 

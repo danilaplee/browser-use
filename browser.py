@@ -3,13 +3,15 @@ import logging
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 from playwright.async_api import async_playwright, Browser, BrowserContext, Page
-from .config import settings
+from config import settings
 import functools
 import time
 from collections import defaultdict
 import json
+from logging_config import setup_logging, log_info, log_error, log_debug, log_warning
 
-logger = logging.getLogger(__name__)
+# Configuração de logging
+logger = logging.getLogger('browser-use.browser')
 
 class MetricsCollector:
     def __init__(self):
@@ -155,8 +157,90 @@ class SessionPool:
 
 class BrowserManager:
     def __init__(self):
+        self.browser = None
+        self.context = None
+        self.page = None
+        log_info(logger, "BrowserManager inicializado")
         self.session_pool = SessionPool()
         self.metrics_collector = MetricsCollector()
+
+    async def start(self):
+        """Inicia o navegador e configura o contexto"""
+        try:
+            log_info(logger, "Iniciando navegador")
+            playwright = await async_playwright().start()
+            self.browser = await playwright.chromium.launch(headless=True)
+            self.context = await self.browser.new_context()
+            self.page = await self.context.new_page()
+            log_info(logger, "Navegador iniciado com sucesso")
+        except Exception as e:
+            log_error(logger, "Erro ao iniciar navegador", {
+                "error": str(e)
+            }, exc_info=True)
+            raise
+
+    async def navigate(self, url: str):
+        """Navega para uma URL específica"""
+        try:
+            log_info(logger, "Navegando para URL", {
+                "url": url
+            })
+            await self.page.goto(url)
+            log_debug(logger, "Navegação concluída", {
+                "url": url
+            })
+        except Exception as e:
+            log_error(logger, "Erro ao navegar para URL", {
+                "url": url,
+                "error": str(e)
+            }, exc_info=True)
+            raise
+
+    async def close(self):
+        """Fecha o navegador e limpa os recursos"""
+        try:
+            log_info(logger, "Fechando navegador")
+            if self.page:
+                await self.page.close()
+            if self.context:
+                await self.context.close()
+            if self.browser:
+                await self.browser.close()
+            log_info(logger, "Navegador fechado com sucesso")
+        except Exception as e:
+            log_error(logger, "Erro ao fechar navegador", {
+                "error": str(e)
+            }, exc_info=True)
+            raise
+
+    async def get_page_content(self) -> str:
+        """Obtém o conteúdo da página atual"""
+        try:
+            log_debug(logger, "Obtendo conteúdo da página")
+            content = await self.page.content()
+            log_debug(logger, "Conteúdo obtido com sucesso")
+            return content
+        except Exception as e:
+            log_error(logger, "Erro ao obter conteúdo da página", {
+                "error": str(e)
+            }, exc_info=True)
+            raise
+
+    async def execute_script(self, script: str):
+        """Executa um script JavaScript na página"""
+        try:
+            log_debug(logger, "Executando script", {
+                "script": script
+            })
+            result = await self.page.evaluate(script)
+            log_debug(logger, "Script executado com sucesso")
+            return result
+        except Exception as e:
+            log_error(logger, "Erro ao executar script", {
+                "script": script,
+                "error": str(e)
+            }, exc_info=True)
+            raise
 
     async def execute_task(self, task: str, config: Dict[str, Any]) -> Dict[str, Any]:
         """Executa uma tarefa de automação"""
