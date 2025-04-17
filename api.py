@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session
 from database import get_db, Task
 from logging_config import setup_logging, log_info, log_error
 from browser import BrowserManager
+import aiohttp
+import traceback
 
 # Configuração de logging
 logger = logging.getLogger('browser-use.api')
@@ -49,6 +51,26 @@ class SystemMetrics(BaseModel):
     queued_tasks: int
     max_concurrent_tasks: int
     available_slots: int
+
+# URL do webhook para envio de erros
+ERROR_WEBHOOK_URL = "https://vrautomatize-n8n.snrhk1.easypanel.host/webhook/browser-use-vra-handler"
+
+async def send_error_to_webhook(error: str, context: str, task_id: Optional[int] = None):
+    """Envia informações de erro para o webhook"""
+    try:
+        async with aiohttp.ClientSession() as session:
+            payload = {
+                "error": error,
+                "context": context,
+                "task_id": task_id,
+                "timestamp": datetime.utcnow().isoformat(),
+                "stack_trace": traceback.format_exc()
+            }
+            async with session.post(ERROR_WEBHOOK_URL, json=payload) as response:
+                if response.status != 200:
+                    logger.error(f"Falha ao enviar erro para webhook: {response.status}")
+    except Exception as e:
+        logger.error(f"Erro ao enviar para webhook: {str(e)}")
 
 # Função para calcular recursos disponíveis
 def calculate_max_tasks():
@@ -92,9 +114,11 @@ async def execute_task(task_id: int, task: str, config: Dict[str, Any], db: Sess
             db_task.error = str(e)
             db_task.completed_at = datetime.utcnow()
             db.commit()
+        await send_error_to_webhook(str(e), "execute_task", task_id)
         raise
     finally:
         running_tasks.remove(task_id)
+        db.close()
 
 # Função para processar a fila
 async def process_queue():
@@ -103,10 +127,21 @@ async def process_queue():
             if len(running_tasks) < MAX_CONCURRENT_TASKS:
                 task_id, task, config = await task_queue.get()
                 running_tasks.add(task_id)
-                asyncio.create_task(execute_task(task_id, task, config, next(get_db())))
+                
+                # Criar uma nova sessão do banco de dados para cada tarefa
+                db = next(get_db())
+                try:
+                    asyncio.create_task(execute_task(task_id, task, config, db))
+                except Exception as e:
+                    log_error(logger, f"Erro ao criar tarefa: {str(e)}")
+                    await send_error_to_webhook(str(e), "process_queue", task_id)
+                    running_tasks.remove(task_id)
+                    db.close()
+                
             await asyncio.sleep(1)
         except Exception as e:
             log_error(logger, f"Erro ao processar fila: {str(e)}")
+            await send_error_to_webhook(str(e), "process_queue")
             await asyncio.sleep(1)
 
 # Iniciar processamento da fila
@@ -168,6 +203,7 @@ async def run_task(request: TaskRequest):
 
     except Exception as e:
         log_error(logger, f"Erro ao executar tarefa: {str(e)}")
+        await send_error_to_webhook(str(e), "run_task")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/status/{task_id}")
@@ -188,6 +224,7 @@ async def get_task_status(task_id: int):
 
     except Exception as e:
         log_error(logger, f"Erro ao obter status da tarefa: {str(e)}")
+        await send_error_to_webhook(str(e), "get_task_status", task_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/metrics")
@@ -224,4 +261,5 @@ async def get_metrics():
 
     except Exception as e:
         log_error(logger, f"Erro ao obter métricas: {str(e)}")
+        await send_error_to_webhook(str(e), "get_metrics")
         raise HTTPException(status_code=500, detail=str(e)) 

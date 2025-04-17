@@ -127,7 +127,7 @@ RUN pip install --no-cache-dir \
     python-jose[cryptography]==3.3.0 \
     passlib[bcrypt]==1.7.4 \
     python-multipart==0.0.6 \
-    aiohttp==3.9.1 \
+    aiohttp==3.9.3 \
     httpx==0.25.2 \
     psutil==5.9.6 \
     alembic==1.12.1 \
