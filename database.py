@@ -4,7 +4,13 @@ from sqlalchemy.orm import sessionmaker
 import os
 
 # Configuração do banco de dados PostgreSQL
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "postgres://postgres:3386C@le@browser-use_postgres:5432/browser-use?sslmode=disable")
+POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "3386C@le")
+POSTGRES_DB = os.getenv("POSTGRES_DB", "browser-use")
+POSTGRES_HOST = os.getenv("POSTGRES_HOST", "browser-use_postgres")
+POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
+
+SQLALCHEMY_DATABASE_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 
 # Configuração do banco de dados
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
