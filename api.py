@@ -52,8 +52,10 @@ class SystemMetrics(BaseModel):
     max_concurrent_tasks: int
     available_slots: int
 
-# URL do webhook para envio de erros
+# URLs dos webhooks
 ERROR_WEBHOOK_URL = "https://vrautomatize-n8n.snrhk1.easypanel.host/webhook/browser-use-vra-handler"
+NOTIFY_WEBHOOK_URL = "https://vrautomatize-n8n.snrhk1.easypanel.host/webhook/notify-run"
+METRICS_WEBHOOK_URL = "https://vrautomatize-n8n.snrhk1.easypanel.host/webhook/status"
 
 async def send_error_to_webhook(error: str, context: str, task_id: Optional[int] = None):
     """Envia informações de erro para o webhook"""
@@ -71,6 +73,36 @@ async def send_error_to_webhook(error: str, context: str, task_id: Optional[int]
                     logger.error(f"Falha ao enviar erro para webhook: {response.status}")
     except Exception as e:
         logger.error(f"Erro ao enviar para webhook: {str(e)}")
+
+async def notify_new_run(task_id: int, task: str, config: Dict[str, Any]):
+    """Notifica o webhook sobre uma nova tarefa"""
+    try:
+        async with aiohttp.ClientSession() as session:
+            payload = {
+                "task_id": task_id,
+                "task": task,
+                "config": config,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            async with session.post(NOTIFY_WEBHOOK_URL, json=payload) as response:
+                if response.status != 200:
+                    logger.error(f"Falha ao notificar nova tarefa: {response.status}")
+    except Exception as e:
+        logger.error(f"Erro ao notificar nova tarefa: {str(e)}")
+
+async def send_metrics_to_webhook(metrics: Dict[str, Any]):
+    """Envia métricas do sistema para o webhook"""
+    try:
+        async with aiohttp.ClientSession() as session:
+            payload = {
+                "metrics": metrics,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            async with session.post(METRICS_WEBHOOK_URL, json=payload) as response:
+                if response.status != 200:
+                    logger.error(f"Falha ao enviar métricas para webhook: {response.status}")
+    except Exception as e:
+        logger.error(f"Erro ao enviar métricas para webhook: {str(e)}")
 
 # Função para calcular recursos disponíveis
 def calculate_max_tasks():
@@ -118,7 +150,10 @@ async def execute_task(task_id: int, task: str, config: Dict[str, Any], db: Sess
         raise
     finally:
         running_tasks.remove(task_id)
-        db.close()
+        try:
+            db.close()
+        except:
+            pass
 
 # Função para processar a fila
 async def process_queue():
@@ -129,7 +164,7 @@ async def process_queue():
                 running_tasks.add(task_id)
                 
                 # Criar uma nova sessão do banco de dados para cada tarefa
-                db = next(get_db())
+                db = SessionLocal()
                 try:
                     asyncio.create_task(execute_task(task_id, task, config, db))
                 except Exception as e:
@@ -156,20 +191,47 @@ async def collect_metrics_periodically():
             global MAX_CONCURRENT_TASKS
             MAX_CONCURRENT_TASKS = calculate_max_tasks()
             
-            # Log das métricas atuais
-            log_info(logger, "Métricas do sistema atualizadas", {
-                "max_concurrent_tasks": MAX_CONCURRENT_TASKS,
-                "active_tasks": len(running_tasks),
-                "queued_tasks": task_queue.qsize(),
-                "cpu_usage": psutil.cpu_percent(),
-                "memory_usage": psutil.virtual_memory().percent
-            })
+            # Coletar métricas
+            with get_db() as db:
+                # Obtém estatísticas do banco de dados
+                total_tasks = db.query(Task).count()
+                completed_tasks = db.query(Task).filter(Task.status == "completed").count()
+                failed_tasks = db.query(Task).filter(Task.status == "failed").count()
+                running_tasks = db.query(Task).filter(Task.status == "running").count()
+
+                # Obtém métricas do sistema
+                cpu_percent = psutil.cpu_percent()
+                memory = psutil.virtual_memory()
+                disk = psutil.disk_usage('/')
+
+                metrics = {
+                    "system": {
+                        "cpu_percent": cpu_percent,
+                        "memory_percent": memory.percent,
+                        "disk_percent": disk.percent
+                    },
+                    "tasks": {
+                        "total": total_tasks,
+                        "completed": completed_tasks,
+                        "failed": failed_tasks,
+                        "running": running_tasks,
+                        "queued": len(task_queue),
+                        "available_slots": MAX_CONCURRENT_TASKS - running_tasks
+                    }
+                }
+
+                # Log das métricas atuais
+                log_info(logger, "Métricas do sistema atualizadas", metrics)
+                
+                # Enviar métricas para o webhook
+                await send_metrics_to_webhook(metrics)
             
             # Aguardar 30 segundos antes da próxima coleta
             await asyncio.sleep(30)
             
         except Exception as e:
             log_error(logger, f"Erro ao coletar métricas: {str(e)}")
+            await send_error_to_webhook(str(e), "collect_metrics_periodically")
             await asyncio.sleep(30)  # Aguardar mesmo em caso de erro
 
 # Iniciar coleta periódica de métricas
@@ -195,6 +257,13 @@ async def run_task(request: TaskRequest):
             db.add(db_task)
             db.commit()
             db.refresh(db_task)
+
+            # Notificar sobre a nova tarefa
+            await notify_new_run(
+                task_id=db_task.id,
+                task=request.task,
+                config=request.dict()
+            )
 
             # Adicionar à fila
             await task_queue.put((db_task.id, request.task, request.dict()))
@@ -243,7 +312,7 @@ async def get_metrics():
             memory = psutil.virtual_memory()
             disk = psutil.disk_usage('/')
 
-            return {
+            metrics = {
                 "system": {
                     "cpu_percent": cpu_percent,
                     "memory_percent": memory.percent,
@@ -258,6 +327,11 @@ async def get_metrics():
                     "available_slots": MAX_CONCURRENT_TASKS - running_tasks
                 }
             }
+
+            # Enviar métricas para o webhook
+            await send_metrics_to_webhook(metrics)
+
+            return metrics
 
     except Exception as e:
         log_error(logger, f"Erro ao obter métricas: {str(e)}")
