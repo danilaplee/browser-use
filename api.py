@@ -21,6 +21,7 @@ from models import BrowserMetrics, TaskResponse, Session, SessionResponse, Metri
 from logging_config import setup_logging, log_info, log_error, log_debug, log_warning
 from fastapi.responses import JSONResponse
 from schemas import TaskCreate, TaskResponse, SessionResponse, BrowserMetricsResponse, MetricsResponse, SystemStatus, TaskUpdate
+from playwright.async_api import Browser, Page
 
 # Configuração de logging
 logger = logging.getLogger('browser-use.api')
