@@ -5,16 +5,26 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PATH="/root/.local/bin:$PATH"
 ENV DISPLAY=:99
+ENV DEBIAN_FRONTEND=noninteractive
 
 # Criar usuário não-root
 RUN useradd -m -u 1000 appuser && \
     mkdir -p /app && \
     chown appuser:appuser /app
 
-# Instalar dependências do sistema
-RUN apt-get update && apt-get install -y \
+# Configurar apt para ser mais robusto
+RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80retries && \
+    echo 'Acquire::http::Timeout "120";' >> /etc/apt/apt.conf.d/80retries && \
+    echo 'Acquire::ftp::Timeout "120";' >> /etc/apt/apt.conf.d/80retries
+
+# Instalar dependências do sistema em etapas
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
     wget \
     gnupg \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
     xvfb \
     libgconf-2-4 \
     libatk1.0-0 \
@@ -32,10 +42,16 @@ RUN apt-get update && apt-get install -y \
     libpangocairo-1.0-0 \
     libnspr4 \
     libnss3 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
     fonts-liberation \
     fonts-noto-color-emoji \
     fonts-noto-cjk \
     x11-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
     make \
     gcc \
     git \
@@ -47,66 +63,66 @@ RUN apt-get update && apt-get install -y \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
+# Instalar dependências adicionais do Playwright
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libnss3 \
+    libnspr4 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libasound2 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libx11-6 \
+    libx11-xcb1 \
+    libxcb1 \
+    libxcomposite1 \
+    libxcursor1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxi6 \
+    libxrandr2 \
+    libxrender1 \
+    libxss1 \
+    libxtst6 \
+    && rm -rf /var/lib/apt/lists/*
+
 # Criar diretório para logs
 RUN mkdir -p /var/log/browser-use && \
-    chown -R appuser:appuser /var/log/browser-use && \
-    chmod 777 /var/log/browser-use
+    chown appuser:appuser /var/log/browser-use
 
 # Configurar diretório de trabalho
 WORKDIR /app
 
-# Copiar arquivos necessários
-COPY --chown=appuser:appuser . .
-
-# Tornar scripts executáveis
-RUN chmod +x start.sh
-
-# Instalar pip atualizado
-RUN python -m pip install --upgrade pip setuptools wheel
+# Copiar arquivos de requisitos
+COPY requirements.txt .
 
 # Instalar dependências Python
-RUN pip install --no-cache-dir -e .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Instalar pacotes Python adicionais necessários
-RUN pip install --no-cache-dir \
-    fastapi \
-    uvicorn \
-    langchain-google-genai \
-    psycopg2-binary \
-    aiohttp \
-    python-dotenv \
-    alembic \
-    sqlalchemy \
-    pydantic \
-    pydantic-settings \
-    python-jose[cryptography] \
-    passlib[bcrypt] \
-    python-multipart \
-    asyncpg \
-    greenlet \
-    sqlalchemy[asyncio] \
-    sqlalchemy[postgresql] \
-    psutil \
-    httpx
+# Instalar browsers do Playwright
+RUN playwright install chromium
+RUN playwright install-deps
 
-# Pré-instalar Playwright durante o build
-RUN python -m pip install playwright && \
-    python -m playwright install chromium && \
-    python -m playwright install-deps
+# Copiar código da aplicação
+COPY . .
 
-# Expor porta para a API
-EXPOSE 8000
-
-# Definir variáveis de ambiente padrão
-ENV HOST=0.0.0.0
-ENV PORT=8000
-ENV DEBUG=false
-ENV PLAYWRIGHT_BROWSERS_PATH=/tmp/playwright-browsers
-ENV BROWSER_USE_DEBUG=true
-ENV BROWSER_USE_HEADLESS=true
+# Configurar permissões
+RUN chown -R appuser:appuser /app
 
 # Mudar para usuário não-root
 USER appuser
 
-# Iniciar a aplicação usando o script
-CMD ["./start.sh"] 
+# Expor porta
+EXPOSE 8000
+
+# Comando para iniciar a aplicação
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"] 
