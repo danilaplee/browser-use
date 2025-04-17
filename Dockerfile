@@ -100,16 +100,6 @@ RUN apt-get clean && \
     libxext6 \
     && rm -rf /var/lib/apt/lists/*
 
-# Instalar navegadores do Playwright
-RUN playwright install chromium
-
-# Criar diretório para logs
-RUN mkdir -p /var/log/browser-use && \
-    chown appuser:appuser /var/log/browser-use
-
-# Configurar diretório de trabalho
-WORKDIR /app
-
 # Instalar dependências Python
 RUN pip install --no-cache-dir \
     fastapi==0.104.0 \
@@ -134,6 +124,16 @@ RUN pip install --no-cache-dir \
 # Instalar pacotes LangChain necessários
 RUN pip install --no-cache-dir langchain==0.1.0
 RUN pip install --no-cache-dir langchain-openai==0.0.5
+
+# Instalar navegadores do Playwright
+RUN playwright install chromium
+
+# Criar diretório para logs
+RUN mkdir -p /var/log/browser-use && \
+    chown appuser:appuser /var/log/browser-use
+
+# Configurar diretório de trabalho
+WORKDIR /app
 
 # Copiar o código da aplicação
 COPY . .
