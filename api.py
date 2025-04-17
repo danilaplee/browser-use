@@ -33,16 +33,18 @@ class LLMConfig(BaseModel):
     model_name: str
     temperature: float = 0.0
 
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True
+    }
 
 class BrowserConfig(BaseModel):
     headless: bool = True
     disable_security: bool = True
     extra_chromium_args: List[str] = []
 
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True
+    }
 
 class TaskRequest(BaseModel):
     task: str
@@ -52,8 +54,9 @@ class TaskRequest(BaseModel):
     use_vision: bool = True
     priority: float = 0.0
 
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True
+    }
 
 class TaskStatus(BaseModel):
     id: int
@@ -64,8 +67,9 @@ class TaskStatus(BaseModel):
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True
+    }
 
 class SystemMetrics(BaseModel):
     cpu_usage: float
@@ -279,16 +283,21 @@ asyncio.create_task(collect_metrics_periodically())
 async def run_task(request: TaskRequest):
     """Executa uma nova tarefa de automação"""
     try:
+        # Verifica se o BrowserManager está inicializado
+        if not browser_manager.browser:
+            await browser_manager.start()
+            log_info(logger, "BrowserManager inicializado no endpoint /run")
+
         # Criar nova tarefa no banco de dados
         with get_db() as db:
             db_task = Task(
                 task=request.task,
-                config={
+                config=json.dumps({
                     "llm_config": request.llm_config.model_dump(),
                     "browser_config": request.browser_config.model_dump() if request.browser_config else {},
                     "max_steps": request.max_steps,
                     "use_vision": request.use_vision
-                },
+                }),
                 status="pending",
                 priority=request.priority,
                 created_at=datetime.utcnow()
