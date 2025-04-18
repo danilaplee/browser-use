@@ -101,7 +101,7 @@ RUN apt-get clean && \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Rust and Cargo
-RUN curl https://sh.rustup.rs -sSf | sh -y
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 
 # Install Python dependencies
 RUN pip install --no-cache-dir \
