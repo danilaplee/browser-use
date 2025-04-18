@@ -24,8 +24,8 @@ log_info(logger, "Inicializando conexão com o banco de dados", {
 
 # Configuração do banco de dados
 engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False}  # Necessário para SQLite
+    DATABASE_URL
+    # connect_args={"check_same_thread": False}  # Necessário para SQLite
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

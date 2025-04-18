@@ -13,29 +13,29 @@ from logging_config import setup_logging, log_info, log_error, log_debug, log_wa
 
 from browser_use import Agent, BrowserConfig, Browser
 
-# Configuração de logging
+# Logging configuration
 logger = logging.getLogger('browser-use.server')
 
-# Carregar variáveis de ambiente
+# Load environment variables
 load_dotenv()
 
-# Configuração do banco de dados
+# Database configuration
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    raise ValueError("DATABASE_URL não está definida nas variáveis de ambiente")
+    raise ValueError("DATABASE_URL is not defined in environment variables")
 
-log_info(logger, f"Conectando ao banco de dados em: {DATABASE_URL}")
+log_info(logger, f"Connecting to database at: {DATABASE_URL}")
 
-# Inicializar o banco de dados
+# Initialize database
 init_db()
 
-# Inicializa o aplicativo FastAPI
+# Initialize FastAPI application
 app = FastAPI(
     title="Browser-use API",
-    description="API para controlar o Browser-use"
+    description="API to control Browser-use"
 )
 
-# Configura CORS
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -44,22 +44,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Inclui rotas da API
+# Include API routes
 app.include_router(router)
 
-# Modelos de dados
+# Data models
 class BrowserConfigModel(BaseModel):
     headless: bool = True
     disable_security: bool = True
     extra_chromium_args: List[str] = []
 
 class ModelConfig(BaseModel):
-    provider: str = Field(..., description="Provedor do modelo: openai, azure")
-    model_name: str = Field(..., description="Nome do modelo a ser utilizado")
-    api_key: Optional[str] = Field(None, description="API key para o provedor (se necessário)")
-    azure_endpoint: Optional[str] = Field(None, description="Endpoint para Azure OpenAI (se provider=azure)")
-    azure_api_version: Optional[str] = Field(None, description="Versão da API do Azure OpenAI (se provider=azure)")
-    temperature: float = Field(0.0, description="Temperatura para geração (0.0 a 1.0)")
+    provider: str = Field(..., description="Model provider: openai, azure")
+    model_name: str = Field(..., description="Model name to be used")
+    api_key: Optional[str] = Field(None, description="API key for the provider (if needed)")
+    azure_endpoint: Optional[str] = Field(None, description="Endpoint for Azure OpenAI (if provider=azure)")
+    azure_api_version: Optional[str] = Field(None, description="Azure OpenAI API version (if provider=azure)")
+    temperature: float = Field(0.0, description="Generation temperature (0.0 to 1.0)")
 
 class TaskRequest(BaseModel):
     task: str
@@ -75,11 +75,11 @@ class AgentResponse(BaseModel):
     steps_executed: int
     error: Optional[str] = None
 
-# Função para obter o LLM com base na configuração
+# Function to get LLM based on configuration
 def get_llm(model_config: ModelConfig):
     try:
         provider = model_config.provider.lower()
-        log_info(logger, "Inicializando LLM", {
+        log_info(logger, "Initializing LLM", {
             "provider": provider,
             "model": model_config.model_name
         })
@@ -105,46 +105,46 @@ def get_llm(model_config: ModelConfig):
                 api_version=model_config.azure_api_version or "2024-10-21"
             )
         else:
-            raise ValueError(f"Provedor não suportado: {provider}")
+            raise ValueError(f"Unsupported provider: {provider}")
     except Exception as e:
-        log_error(logger, "Erro ao inicializar LLM", {
+        log_error(logger, "Error initializing LLM", {
             "provider": model_config.provider,
             "model": model_config.model_name,
             "error": str(e)
         }, exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erro ao inicializar LLM: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error initializing LLM: {str(e)}")
 
 @app.post("/run", response_model=AgentResponse)
 async def run_agent(
     request: TaskRequest = Body(...),
     db = Depends(get_db)
 ):
-    log_info(logger, "Iniciando execução de agente", {
+    log_info(logger, "Starting agent execution", {
         "task": request.task,
         "provider": request.llm_config.provider,
         "model": request.llm_config.model_name
     })
     
     try:
-        # Configurar o modelo LLM
+        # Configure LLM model
         llm = get_llm(request.llm_config)
         
-        # Configurar o navegador
+        # Configure browser
         browser_config = BrowserConfig(
             headless=request.browser_config.headless if request.browser_config else True,
             disable_security=request.browser_config.disable_security if request.browser_config else True,
             extra_chromium_args=request.browser_config.extra_chromium_args if request.browser_config else []
         )
         
-        log_debug(logger, "Configuração do navegador", {
+        log_debug(logger, "Browser configuration", {
             "headless": browser_config.headless,
             "disable_security": browser_config.disable_security
         })
         
-        # Inicializar o navegador
+        # Initialize browser
         browser = Browser(config=browser_config)
         
-        # Inicializar e executar o agente
+        # Initialize and run agent
         agent = Agent(
             task=request.task, 
             llm=llm, 
@@ -154,18 +154,18 @@ async def run_agent(
         
         result = await agent.run(max_steps=request.max_steps)
         
-        # Extrair o resultado
+        # Extract result
         success = False
-        content = "Tarefa não concluída"
+        content = "Task not completed"
         
         if result and result.history and len(result.history) > 0:
             last_item = result.history[-1]
             if last_item.result and len(last_item.result) > 0:
                 last_result = last_item.result[-1]
-                content = last_result.extracted_content or "Sem conteúdo extraído"
+                content = last_result.extracted_content or "No content extracted"
                 success = last_result.is_done
         
-        # Fechar o navegador após o uso
+        # Close browser after use
         await browser.close()
         
         return AgentResponse(
@@ -176,7 +176,7 @@ async def run_agent(
         )
         
     except Exception as e:
-        log_error(logger, "Erro durante execução do agente", {
+        log_error(logger, "Error during agent execution", {
             "task": request.task,
             "error": str(e)
         }, exc_info=True)
@@ -184,20 +184,20 @@ async def run_agent(
 
 @app.get("/health")
 async def health_check():
-    """Endpoint para verificar a saúde da API"""
-    log_debug(logger, "Verificando saúde da API")
+    """Endpoint to check API health"""
+    log_debug(logger, "Checking API health")
     return {"status": "healthy"}
 
 if __name__ == "__main__":
     import uvicorn
     
-    # Obter porta do ambiente ou usar 8000 como padrão
+    # Get port from environment or use 8000 as default
     port = int(os.getenv("PORT", 8000))
     
-    log_info(logger, "Iniciando servidor FastAPI", {
+    log_info(logger, "Starting FastAPI server", {
         "host": "0.0.0.0",
         "port": port
     })
     
-    # Iniciar servidor
-    uvicorn.run("server:app", host="0.0.0.0", port=port, log_level="info") 
+    # Start server
+    uvicorn.run("server:app", host="0.0.0.0", port=port, log_level="info")
