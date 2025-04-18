@@ -124,7 +124,7 @@ RUN pip install --no-cache-dir \
     httpx==0.25.2 \
     psutil==5.9.6 \
     alembic==1.12.1 \
-    greenlet==3.0.1 \
+    greenlet==3.1.1 \
     posthog==3.0.0
 
 # Install required LangChain packages
