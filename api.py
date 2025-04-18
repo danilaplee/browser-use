@@ -80,9 +80,9 @@ class SystemMetrics(BaseModel):
     available_slots: int
 
 # URLs dos webhooks
-ERROR_WEBHOOK_URL = "https://vrautomatize-n8n.snrhk1.easypanel.host/webhook/browser-use-vra-handler"
-NOTIFY_WEBHOOK_URL = "https://vrautomatize-n8n.snrhk1.easypanel.host/webhook/notify-run"
-METRICS_WEBHOOK_URL = "https://vrautomatize-n8n.snrhk1.easypanel.host/webhook/status"
+ERROR_WEBHOOK_URL = os.getenv("ERROR_WEBHOOK_URL","https://vrautomatize-n8n.snrhk1.easypanel.host/webhook/browser-use-vra-handler")
+NOTIFY_WEBHOOK_URL = os.getenv("NOTIFY_WEBHOOK_URL","https://vrautomatize-n8n.snrhk1.easypanel.host/webhook/notify-run")
+METRICS_WEBHOOK_URL = os.getenv("METRICS_WEBHOOK_URL","https://vrautomatize-n8n.snrhk1.easypanel.host/webhook/status")
 
 async def send_error_to_webhook(error: str, context: str, task_id: Optional[int] = None):
     """Envia informações de erro para o webhook"""

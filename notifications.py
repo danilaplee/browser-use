@@ -8,9 +8,9 @@ logger = logging.getLogger(__name__)
 
 class WebhookManager:
     def __init__(self):
-        self.notify_run_url = "https://vrautomatize-n8n.snrhk1.easypanel.host/webhook/notify-run"
-        self.error_handler_url = "https://vrautomatize-n8n.snrhk1.easypanel.host/webhook/browser-use-vra-handler"
-        self.status_url = "https://vrautomatize-n8n.snrhk1.easypanel.host/webhook/status"
+        self.notify_run_url = os.getenv("NOTIFY_WEBHOOK_URL","https://vrautomatize-n8n.snrhk1.easypanel.host/webhook/notify-run")
+        self.error_handler_url = os.getenv("ERROR_WEBHOOK_URL","https://vrautomatize-n8n.snrhk1.easypanel.host/webhook/browser-use-vra-handler")
+        self.status_url = os.getenv("STATUS_WEBHOOK_URL","https://vrautomatize-n8n.snrhk1.easypanel.host/webhook/status")
         self.session = None
 
     async def init_session(self):
