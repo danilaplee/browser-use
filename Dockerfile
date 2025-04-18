@@ -26,9 +26,6 @@ RUN apt-get clean && \
     gnupg \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Rust
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-RUN rustc --version
 
 # Install system dependencies in stages
 RUN apt-get clean && \
@@ -76,6 +73,10 @@ RUN apt-get clean && \
     libpq-dev \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+RUN rustc --version
 
 # Install additional Playwright dependencies
 RUN apt-get clean && \
