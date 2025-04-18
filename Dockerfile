@@ -77,8 +77,7 @@ RUN apt-get clean && \
 # Install Rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 RUN . "$HOME/.cargo/env"
-RUN echo $HOME
-RUN cat $(HOME)/.cargo/env   
+RUN echo $HOME 
 RUN cat ${PATH}
 RUN rustc --version
 
