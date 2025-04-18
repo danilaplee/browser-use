@@ -66,6 +66,7 @@ RUN apt-get clean && \
     apt-get install -y --no-install-recommends \
     make \
     gcc \
+    g++ \
     git \
     procps \
     dbus \
