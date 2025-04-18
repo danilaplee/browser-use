@@ -27,7 +27,8 @@ RUN apt-get clean && \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Rust
-RUN apt update && apt install rustc -y
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+RUN rustc --version
 
 # Install system dependencies in stages
 RUN apt-get clean && \
