@@ -99,6 +99,10 @@ RUN apt-get clean && \
     libxdamage1 \
     libxext6 \
     && rm -rf /var/lib/apt/lists/*
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+RUN source "$HOME/.cargo/env"
+RUN rustc -V
 
 # Install Python dependencies
 RUN pip install --no-cache-dir \
