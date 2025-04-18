@@ -71,6 +71,8 @@ RUN apt-get clean && \
     libpq-dev \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
+# Install Rust
+RUN apt-get install rustc -y
 
 # Install additional Playwright dependencies
 RUN apt-get clean && \
@@ -99,10 +101,6 @@ RUN apt-get clean && \
     libxdamage1 \
     libxext6 \
     && rm -rf /var/lib/apt/lists/*
-# Install Rust
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-RUN source "$HOME/.cargo/env"
-RUN rustc -V
 
 # Install Python dependencies
 RUN pip install --no-cache-dir \
