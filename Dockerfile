@@ -8,7 +8,7 @@ ENV DISPLAY=:99
 ENV DEBIAN_FRONTEND=noninteractive
 ENV HOME=/root
 # Create non-root user
-RUN useradd -m -u 1000 -d appuser && \
+RUN useradd -m -u 1000 appuser && \
     mkdir -p /app && \
     chown appuser:appuser /app
 
