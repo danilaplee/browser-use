@@ -78,7 +78,8 @@ RUN apt-get clean && \
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 RUN . $(HOME)/.cargo/env
 RUN echo $HOME
-RUN cat $HOME/.cargo/env   
+RUN cat $(HOME)/.cargo/env   
+RUN cat ${PATH}
 RUN rustc --version
 
 # Install additional Playwright dependencies
