@@ -6,7 +6,7 @@ ENV PYTHONUNBUFFERED=1
 ENV PATH="/root/.local/bin:$PATH"
 ENV DISPLAY=:99
 ENV DEBIAN_FRONTEND=noninteractive
-
+ENV HOME=/home/appuser
 # Create non-root user
 RUN useradd -m -u 1000 appuser && \
     mkdir -p /app && \
