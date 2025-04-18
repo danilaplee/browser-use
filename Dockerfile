@@ -102,6 +102,7 @@ RUN apt-get clean && \
 
 # Install Rust and Cargo
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+RUN . "$HOME/.cargo/env" 
 
 # Install Python dependencies
 RUN pip install --no-cache-dir \
