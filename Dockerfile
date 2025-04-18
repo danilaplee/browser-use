@@ -26,6 +26,9 @@ RUN apt-get clean && \
     gnupg \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Rust
+RUN apt update && apt install rustc -y
+
 # Install system dependencies in stages
 RUN apt-get clean && \
     apt-get update && \
@@ -71,8 +74,6 @@ RUN apt-get clean && \
     libpq-dev \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
-# Install Rust
-RUN apt-get install rustc -y
 
 # Install additional Playwright dependencies
 RUN apt-get clean && \
