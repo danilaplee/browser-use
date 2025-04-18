@@ -210,3 +210,132 @@ Due to common issues with Nixpacks, we **strongly** recommend using Docker for d
 3. The system will use the provided Dockerfile, which includes all necessary dependencies.  
 
 The Dockerfile is specially configured to resolve common dependency and Python setup issues.
+
+# Browser Use - Browser Automation System  
+
+A Playwright-based browser automation system with automatic session management and performance metrics.  
+
+## Requirements  
+
+- Python 3.8+  
+- PostgreSQL 12+  
+- Playwright  
+- psutil  
+
+## Installation  
+
+1. Clone the repository:  
+```bash  
+git clone https://github.com/your-username/browser-use.git  
+cd browser-use  
+```  
+
+2. Create and activate a virtual environment:  
+```bash  
+python -m venv venv  
+source venv/bin/activate  # Linux/Mac  
+venv\Scripts\activate     # Windows  
+```  
+
+3. Install dependencies:  
+```bash  
+pip install -r requirements.txt  
+```  
+
+4. Configure the `.env` file:  
+```bash  
+cp .env.example .env  
+# Edit the .env file with your settings  
+```  
+
+5. Install Playwright browsers:  
+```bash  
+playwright install  
+```  
+
+6. Start the server:  
+```bash  
+./start.sh  
+```  
+
+## Usage  
+
+### Available Endpoints  
+
+1. **Task Execution**  
+```bash  
+curl -X POST http://localhost:8000/run \  
+  -H "Content-Type: application/json" \  
+  -d '{  
+    "task": "navigate",  
+    "config": {  
+      "url": "https://google.com",  
+      "timeout": 30000,  
+      "viewport": {  
+        "width": 1280,  
+        "height": 720  
+      }  
+    }  
+  }'  
+```  
+
+2. **System Metrics**  
+```bash  
+curl http://localhost:8000/metrics  
+```  
+
+3. **Task Management**  
+```bash  
+# List tasks  
+curl http://localhost:8000/tasks  
+
+# Get task details  
+curl http://localhost:8000/tasks/{task_id}  
+
+# Create new task  
+curl -X POST http://localhost:8000/tasks \  
+  -H "Content-Type: application/json" \  
+  -d '{"task": "navigate", "config": {...}}'  
+
+# Update task  
+curl -X PUT http://localhost:8000/tasks/{task_id} \  
+  -H "Content-Type: application/json" \  
+  -d '{"status": "completed"}'  
+
+# Delete task  
+curl -X DELETE http://localhost:8000/tasks/{task_id}  
+```  
+
+## Configuration  
+
+The system can be configured via the `.env` file. Key settings include:  
+
+- **Database**: PostgreSQL configurations  
+- **Server**: Host and port  
+- **Playwright**: Browser paths and headless mode  
+- **Logging**: Log level and output file  
+- **Security**: Secret key and allowed origins  
+- **Cache**: Time-to-live and activation  
+- **Sessions**: Timeout and maximum number  
+
+## Monitoring  
+
+The system collects detailed metrics on:  
+
+- Task execution time  
+- Resource usage (CPU, memory, disk)  
+- Session statistics  
+- Errors and exceptions  
+- API response time  
+
+## Contributing  
+
+1. Fork the project  
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)  
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)  
+4. Push to the branch (`git push origin feature/AmazingFeature`)  
+5. Open a Pull Request  
+
+## License  
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

@@ -30,3 +30,11 @@ services:
     networks:
       - db-tier
       - default
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8080:8080
+    networks:
+      - db-tier
+      - default
