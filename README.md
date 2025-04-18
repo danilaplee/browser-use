@@ -1,131 +1,131 @@
-# Browser Use - Sistema de Automação de Navegador
+# Browser Use - Browser Automation System  
 
-Sistema de automação de navegador baseado em Playwright com gerenciamento automático de sessões e métricas de desempenho.
+A Playwright-based browser automation system with automatic session management and performance metrics.  
 
-## Requisitos
+## Requirements  
 
-- Python 3.8+
-- PostgreSQL 12+
-- Playwright
-- psutil
+- Python 3.8+  
+- PostgreSQL 12+  
+- Playwright  
+- psutil  
 
-## Instalação
+## Installation  
 
-1. Clone o repositório:
-```bash
-git clone https://github.com/seu-usuario/browser-use.git
-cd browser-use
-```
+1. Clone the repository:  
+```bash  
+git clone https://github.com/your-username/browser-use.git  
+cd browser-use  
+```  
 
-2. Crie um ambiente virtual e ative-o:
-```bash
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-venv\Scripts\activate     # Windows
-```
+2. Create and activate a virtual environment:  
+```bash  
+python -m venv venv  
+source venv/bin/activate  # Linux/Mac  
+venv\Scripts\activate     # Windows  
+```  
 
-3. Instale as dependências:
-```bash
-pip install -r requirements.txt
-```
+3. Install dependencies:  
+```bash  
+pip install -r requirements.txt  
+```  
 
-4. Configure o arquivo .env:
-```bash
-cp .env.example .env
-# Edite o arquivo .env com suas configurações
-```
+4. Configure the `.env` file:  
+```bash  
+cp .env.example .env  
+# Edit the .env file with your settings  
+```  
 
-5. Instale os navegadores do Playwright:
-```bash
-playwright install
-```
+5. Install Playwright browsers:  
+```bash  
+playwright install  
+```  
 
-6. Inicie o servidor:
-```bash
-./start.sh
-```
+6. Start the server:  
+```bash  
+./start.sh  
+```  
 
-## Uso
+## Usage  
 
-### Endpoints Disponíveis
+### Available Endpoints  
 
-1. **Execução de Tarefas**
-```bash
-curl -X POST http://localhost:8000/run \
-  -H "Content-Type: application/json" \
-  -d '{
-    "task": "navigate",
-    "config": {
-      "url": "https://google.com",
-      "timeout": 30000,
-      "viewport": {
-        "width": 1280,
-        "height": 720
-      }
-    }
-  }'
-```
+1. **Task Execution**  
+```bash  
+curl -X POST http://localhost:8000/run \  
+  -H "Content-Type: application/json" \  
+  -d '{  
+    "task": "navigate",  
+    "config": {  
+      "url": "https://google.com",  
+      "timeout": 30000,  
+      "viewport": {  
+        "width": 1280,  
+        "height": 720  
+      }  
+    }  
+  }'  
+```  
 
-2. **Métricas do Sistema**
-```bash
-curl http://localhost:8000/metrics
-```
+2. **System Metrics**  
+```bash  
+curl http://localhost:8000/metrics  
+```  
 
-3. **Gerenciamento de Tarefas**
-```bash
-# Listar tarefas
-curl http://localhost:8000/tasks
+3. **Task Management**  
+```bash  
+# List tasks  
+curl http://localhost:8000/tasks  
 
-# Obter detalhes de uma tarefa
-curl http://localhost:8000/tasks/{task_id}
+# Get task details  
+curl http://localhost:8000/tasks/{task_id}  
 
-# Criar nova tarefa
-curl -X POST http://localhost:8000/tasks \
-  -H "Content-Type: application/json" \
-  -d '{"task": "navigate", "config": {...}}'
+# Create new task  
+curl -X POST http://localhost:8000/tasks \  
+  -H "Content-Type: application/json" \  
+  -d '{"task": "navigate", "config": {...}}'  
 
-# Atualizar tarefa
-curl -X PUT http://localhost:8000/tasks/{task_id} \
-  -H "Content-Type: application/json" \
-  -d '{"status": "completed"}'
+# Update task  
+curl -X PUT http://localhost:8000/tasks/{task_id} \  
+  -H "Content-Type: application/json" \  
+  -d '{"status": "completed"}'  
 
-# Deletar tarefa
-curl -X DELETE http://localhost:8000/tasks/{task_id}
-```
+# Delete task  
+curl -X DELETE http://localhost:8000/tasks/{task_id}  
+```  
 
-## Configurações
+## Configuration  
 
-O sistema pode ser configurado através do arquivo `.env`. As principais configurações incluem:
+The system can be configured via the `.env` file. Key settings include:  
 
-- **Banco de Dados**: Configurações do PostgreSQL
-- **Servidor**: Host e porta
-- **Playwright**: Caminho dos navegadores e modo headless
-- **Log**: Nível de log e arquivo de saída
-- **Segurança**: Chave secreta e origens permitidas
-- **Cache**: Tempo de vida e ativação
-- **Sessões**: Timeout e número máximo
+- **Database**: PostgreSQL configurations  
+- **Server**: Host and port  
+- **Playwright**: Browser paths and headless mode  
+- **Logging**: Log level and output file  
+- **Security**: Secret key and allowed origins  
+- **Cache**: Time-to-live and activation  
+- **Sessions**: Timeout and maximum number  
 
-## Monitoramento
+## Monitoring  
 
-O sistema coleta métricas detalhadas sobre:
+The system collects detailed metrics on:  
 
-- Tempo de execução de tarefas
-- Uso de recursos (CPU, memória, disco)
-- Estatísticas de sessões
-- Erros e exceções
-- Tempo de resposta da API
+- Task execution time  
+- Resource usage (CPU, memory, disk)  
+- Session statistics  
+- Errors and exceptions  
+- API response time  
 
-## Contribuição
+## Contributing  
 
-1. Fork o projeto
-2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
-3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
-4. Push para a branch (`git push origin feature/AmazingFeature`)
-5. Abra um Pull Request
+1. Fork the project  
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)  
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)  
+4. Push to the branch (`git push origin feature/AmazingFeature`)  
+5. Open a Pull Request  
 
-## Licença
+## License  
 
-Este projeto está licenciado sob a licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./static/browser-use-dark.png">

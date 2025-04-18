@@ -1,212 +1,212 @@
-# Instruções de Deploy - Browser-use API
+# Deployment Instructions - Browser-use API  
 
-Este documento contém instruções para fazer deploy da API Browser-use em uma VPS usando Easypanel e Nixpacks 1.30.
+This document contains instructions for deploying the Browser-use API on a VPS using Easypanel and Nixpacks 1.30.  
 
-## Pré-requisitos
+## Prerequisites  
 
-- Uma VPS com Easypanel instalado
-- Conhecimento básico de Git e Docker
-- Chaves de API para os modelos de linguagem que deseja utilizar
+- A VPS with Easypanel installed  
+- Basic knowledge of Git and Docker  
+- API keys for the language models you intend to use  
 
-## Preparação do Ambiente
+## Environment Setup  
 
-1. Clone este repositório em sua máquina local ou diretamente na VPS
-2. Copie o arquivo `.env.example` para `.env` e preencha as variáveis de ambiente necessárias
+1. Clone this repository on your local machine or directly on the VPS  
+2. Copy the `.env.example` file to `.env` and fill in the required environment variables  
 
-## Deploy utilizando Easypanel
+## Deployment using Easypanel  
 
-### 1. Acesse o Dashboard do Easypanel
+### 1. Access the Easypanel Dashboard  
 
-Acesse o painel do Easypanel instalado em sua VPS através do navegador.
+Access the Easypanel panel installed on your VPS through your browser.  
 
-### 2. Crie um novo projeto
+### 2. Create a New Project  
 
-1. Clique em "Create project"
-2. Escolha a opção "Website" ou "Custom"
-3. Preencha o nome do projeto (exemplo: "browser-use-api")
-4. Configure o domínio ou subdomínio para acessar a API
+1. Click on "Create project"  
+2. Choose the "Website" or "Custom" option  
+3. Fill in the project name (e.g., "browser-use-api")  
+4. Configure the domain or subdomain to access the API  
 
-### 3. Configuração do Projeto
+### 3. Project Configuration  
 
-Na tela de configuração do projeto:
+On the project configuration screen:  
 
-1. Escolha **Build from source**
-2. Insira o URL do seu repositório Git (GitHub, GitLab, etc.)
-3. Em "Build settings", selecione **Dockerfile** como o builder (recomendado)
-   - Alternativamente, você pode usar **Nixpacks** com a versão 1.30 ou superior
-4. Em "Start command" deixe em branco (o comando está definido no Dockerfile/nixpacks.toml)
+1. Select **Build from source**  
+2. Enter your Git repository URL (GitHub, GitLab, etc.)  
+3. Under "Build settings," select **Dockerfile** as the builder (recommended)  
+   - Alternatively, you can use **Nixpacks** with version 1.30 or higher  
+4. Leave the "Start command" blank (the command is defined in Dockerfile/nixpacks.toml)  
 
-### 4. Configuração de Recursos
+### 4. Resource Configuration  
 
-Configure os recursos de acordo com as necessidades da aplicação:
+Configure resources according to the application's needs:  
 
-- CPU: Recomendado pelo menos 1 vCPU
-- RAM: Mínimo de 2GB para funcionamento adequado
-- Armazenamento: 10GB ou mais
+- CPU: At least 1 vCPU recommended  
+- RAM: Minimum of 2GB for proper operation  
+- Storage: 10GB or more  
 
-### 5. Variáveis de Ambiente
+### 5. Environment Variables  
 
-Configure as variáveis de ambiente necessárias:
+Configure the required environment variables:  
 
-1. Vá para a seção "Environment Variables"
-2. Adicione todas as variáveis do seu arquivo `.env` 
-3. Certifique-se de adicionar pelo menos:
-   - `OPENAI_API_KEY` ou outra API key necessária para o modelo de linguagem
-   - `GOOGLE_API_KEY` - **Obrigatória** para funcionar com o Google Generative AI
-   - `PORT` (definido como 8000)
-   - `BROWSER_USE_HEADLESS=true` - Recomendado para maior estabilidade em ambiente de produção
+1. Go to the "Environment Variables" section  
+2. Add all variables from your `.env` file  
+3. Ensure you add at least:  
+   - `OPENAI_API_KEY` or another required API key for the language model  
+   - `GOOGLE_API_KEY` - **Required** for Google Generative AI  
+   - `PORT` (set to 8000)  
+   - `BROWSER_USE_HEADLESS=true` - Recommended for greater stability in production  
 
-### 6. Deploy do Projeto
+### 6. Project Deployment  
 
-1. Clique em "Deploy" para iniciar o processo de build e deploy
-2. Acompanhe os logs para verificar se a build está sendo executada corretamente
-3. Após a conclusão, a API estará disponível no domínio configurado
+1. Click "Deploy" to start the build and deployment process  
+2. Monitor the logs to verify the build is running correctly  
+3. Once completed, the API will be available at the configured domain  
 
-## Testando a API
+## Testing the API  
 
-Após o deploy, teste a API fazendo uma requisição HTTP para o endpoint `/health`:
+After deployment, test the API by sending an HTTP request to the `/health` endpoint:  
 
-```bash
-curl https://seu-dominio.com/health
-```
+```bash  
+curl https://your-domain.com/health  
+```  
 
-Se o retorno for `{"status": "healthy"}`, a API está funcionando corretamente.
+If the response is `{"status": "healthy"}`, the API is working correctly.  
 
-Para testar a funcionalidade completa, faça uma requisição para o endpoint `/run`:
+To test full functionality, send a request to the `/run` endpoint:  
 
-```bash
-curl -X POST https://seu-dominio.com/run \
-  -H "Content-Type: application/json" \
-  -d '{
-    "task": "Busque o título da página inicial do Google",
-    "llm_config": {
-      "provider": "openai",
-      "model_name": "gpt-4o",
-      "temperature": 0.0
-    },
-    "browser_config": {
-      "headless": true,
-      "disable_security": true
-    },
-    "max_steps": 5,
-    "use_vision": true
-  }'
-```
+```bash  
+curl -X POST https://your-domain.com/run \  
+  -H "Content-Type: application/json" \  
+  -d '{  
+    "task": "Get the title of Google's homepage",  
+    "llm_config": {  
+      "provider": "openai",  
+      "model_name": "gpt-4o",  
+      "temperature": 0.0  
+    },  
+    "browser_config": {  
+      "headless": true,  
+      "disable_security": true  
+    },  
+    "max_steps": 5,  
+    "use_vision": true  
+  }'  
+```  
 
-## Solução de Problemas
+## Troubleshooting  
 
-### Problemas de Travamento na Inicialização
+### Startup Freezing Issues  
 
-Se o servidor ficar travado na mensagem "Verificando instalação dos navegadores Playwright..." ou "Iniciando servidor com xvfb-run..." por mais de 10 minutos:
+If the server gets stuck on messages like "Checking Playwright browser installation..." or "Starting server with xvfb-run..." for more than 10 minutes:  
 
-1. **Verifique os logs completos:** Use `docker logs -f nome-do-container` para visualizar todos os logs da aplicação e identificar onde está travando.
+1. **Check full logs:** Use `docker logs -f container-name` to view all application logs and identify where it's stuck.  
 
-2. **Verifique recursos do sistema:** Certifique-se de que a VPS tem memória suficiente (mínimo 2GB recomendado). A instalação do Playwright pode falhar silenciosamente se não houver memória suficiente.
+2. **Check system resources:** Ensure the VPS has enough memory (minimum 2GB recommended). Playwright installation may fail silently if there isn't enough memory.  
 
-3. **Ative o modo headless puro:**
-   - Adicione a variável de ambiente `BROWSER_USE_HEADLESS=true` nas configurações do projeto.
-   - Esta configuração fará o navegador funcionar em modo headless puro, sem depender do Xvfb.
+3. **Enable pure headless mode:**  
+   - Add the environment variable `BROWSER_USE_HEADLESS=true` in the project settings.  
+   - This will make the browser run in pure headless mode, without relying on Xvfb.  
 
-4. **Acesse o container e verifique o estado:**
-   ```bash
-   docker exec -it nome-do-container bash
-   ps aux  # Para ver os processos em execução
-   kill -9 PID  # Para matar processos travados se necessário
-   ```
+4. **Access the container and check status:**  
+   ```bash  
+   docker exec -it container-name bash  
+   ps aux  # To view running processes  
+   kill -9 PID  # To kill stuck processes if necessary  
+   ```  
 
-5. **Reinicie o container:** No dashboard do Easypanel, reinicie o container da aplicação.
+5. **Restart the container:** From the Easypanel dashboard, restart the application container.  
 
-6. **Verifique se o Playwright consegue ser executado:**
-   ```bash
-   docker exec -it nome-do-container bash
-   python3 -c "from playwright.sync_api import sync_playwright; print('OK!' if sync_playwright().__enter__() else 'Falha')"
-   ```
+6. **Verify Playwright execution:**  
+   ```bash  
+   docker exec -it container-name bash  
+   python3 -c "from playwright.sync_api import sync_playwright; print('OK!' if sync_playwright().__enter__() else 'Failed')"  
+   ```  
 
-7. **Solução de último caso:** Se nada funcionar, modifique o arquivo `start.sh` diretamente no container para pular a verificação e instalação do Playwright, forçando o modo headless puro:
-   ```bash
-   docker exec -it nome-do-container bash
-   echo '#!/bin/bash
-   export BROWSER_USE_HEADLESS=true
-   exec python3 server.py' > /app/start.sh
-   chmod +x /app/start.sh
-   ```
-   Em seguida, reinicie o container.
+7. **Last-resort solution:** If nothing works, modify the `start.sh` file directly in the container to skip Playwright verification and force pure headless mode:  
+   ```bash  
+   docker exec -it container-name bash  
+   echo '#!/bin/bash  
+   export BROWSER_USE_HEADLESS=true  
+   exec python3 server.py' > /app/start.sh  
+   chmod +x /app/start.sh  
+   ```  
+   Then restart the container.  
 
-### Problemas com o Docker Build
+### Docker Build Issues  
 
-Se o build do Docker estiver falhando ou demorando muito:
+If the Docker build fails or takes too long:  
 
-1. **Construa localmente:** Construa a imagem localmente e depois faça o upload para um registro como o Docker Hub.
-   ```bash
-   docker build -t seu-usuario/browser-use:latest .
-   docker push seu-usuario/browser-use:latest
-   ```
+1. **Build locally:** Build the image locally and upload it to a registry like Docker Hub.  
+   ```bash  
+   docker build -t your-username/browser-use:latest .  
+   docker push your-username/browser-use:latest  
+   ```  
 
-2. **Use uma imagem pré-construída:** No Easypanel, escolha "Use existing image" e especifique `seu-usuario/browser-use:latest`.
+2. **Use a pre-built image:** In Easypanel, choose "Use existing image" and specify `your-username/browser-use:latest`.  
 
-3. **Desabilite a instalação do Playwright durante o build:** Edite o Dockerfile e comente a linha que instala o Playwright, permitindo que ele seja instalado apenas durante a inicialização.
+3. **Disable Playwright installation during build:** Edit the Dockerfile and comment out the line installing Playwright, allowing it to be installed only during startup.  
 
-### Problemas com o Dockerfile
+### Dockerfile Issues  
 
-Se você encontrar erros como `Unable to locate package xvfb-run` ou `Unable to locate package gnumake` durante o build:
+If you encounter errors like `Unable to locate package xvfb-run` or `Unable to locate package gnumake` during the build:  
 
-1. **Nomes de pacotes corretos**: Certifique-se de usar os nomes corretos para os pacotes Debian. Por exemplo, use `make` em vez de `gnumake` e garanta que o `xvfb` está sendo instalado.
+1. **Correct package names:** Ensure you're using the correct Debian package names. For example, use `make` instead of `gnumake` and verify that `xvfb` is being installed.  
 
-2. **Script xvfb-run personalizado**: O Dockerfile inclui um script personalizado para criar o utilitário `xvfb-run` se ele não estiver disponível no sistema.
+2. **Custom xvfb-run script:** The Dockerfile includes a custom script to create the `xvfb-run` utility if it's not available in the system.  
 
-3. **Dependências de X11**: Certifique-se de que o pacote `x11-utils` está instalado para ter acesso a ferramentas como `xdpyinfo`.
+3. **X11 dependencies:** Ensure the `x11-utils` package is installed for tools like `xdpyinfo`.  
 
-### Problemas com o Python
+### Python Issues  
 
-Se você encontrar erros como `python: command not found` ou `ModuleNotFoundError: No module named 'X'`:
+If you encounter errors like `python: command not found` or `ModuleNotFoundError: No module named 'X'`:  
 
-1. **Usar o Dockerfile**: Recomendamos fortemente usar o Dockerfile fornecido, que já está configurado com todas as dependências necessárias, incluindo a versão correta do Python.
+1. **Use the provided Dockerfile:** We strongly recommend using the provided Dockerfile, which is pre-configured with all necessary dependencies, including the correct Python version.  
 
-2. **Dependências do Langchain**: O servidor requer várias dependências do Langchain, incluindo:
-   - `langchain-google-genai` - Para integração com o Google Generative AI
-   - Outras dependências que podem ser listadas no arquivo `requirements.txt` ou `pyproject.toml`
+2. **Langchain dependencies:** The server requires several Langchain dependencies, including:  
+   - `langchain-google-genai` - For Google Generative AI integration  
+   - Other dependencies listed in `requirements.txt` or `pyproject.toml`  
 
-3. **Instalar dependências manualmente**: Se estiver usando um container existente, você pode instalar as dependências faltantes:
-   ```bash
-   pip install langchain-google-genai
-   ```
+3. **Manually install dependencies:** If using an existing container, install missing dependencies:  
+   ```bash  
+   pip install langchain-google-genai  
+   ```  
 
-4. **Verificar erros de inicialização**: Se o servidor não mostrar logs após a inicialização, verifique erros de importação executando o script manualmente:
-   ```bash
-   python3 server.py
-   ```
+4. **Check startup errors:** If the server doesn't show logs after startup, check import errors by running the script manually:  
+   ```bash  
+   python3 server.py  
+   ```  
 
-### Problemas com Nixpacks e pacotes não encontrados
+### Nixpacks and Missing Packages  
 
-Se você encontrar erros como `undefined variable 'nome-do-pacote'` durante o build com Nixpacks:
+If you encounter errors like `undefined variable 'package-name'` during Nixpacks build:  
 
-1. Verifique se o nome do pacote está correto e existe no repositório Nix
-2. Para problemas com o pacote `xvfb`, use apenas `xvfb-run` que já inclui a funcionalidade necessária
-3. Se necessário, edite o arquivo `nixpacks.toml` e remova os pacotes que estão causando problemas
-4. **Versão alternativa do nixpacks.toml**: Se continuar tendo problemas, renomeie o arquivo `nixpacks.toml.alternative` para `nixpacks.toml` e tente novamente. Esta versão usa uma abordagem mais direta para instalar os pacotes necessários.
+1. Verify the package name is correct and exists in the Nix repository.  
+2. For `xvfb` issues, use `xvfb-run`, which already includes the required functionality.  
+3. If needed, edit `nixpacks.toml` and remove problematic packages.  
+4. **Alternative nixpacks.toml:** If issues persist, rename `nixpacks.toml.alternative` to `nixpacks.toml` and try again. This version uses a more direct approach to install required packages.  
 
-### Problemas com Chromium
+### Chromium Issues  
 
-Se houver problemas com o Chrome/Chromium:
+If there are issues with Chrome/Chromium:  
 
-1. Verifique os logs da aplicação para erros específicos
-2. Certifique-se de que o Easypanel está utilizando o arquivo nixpacks.toml ou o Dockerfile
-3. Se necessário, adicione a variável de ambiente `PLAYWRIGHT_BROWSERS_PATH=/tmp/playwright-browsers` para permitir que o Playwright baixe e instale automaticamente os navegadores
+1. Check application logs for specific errors.  
+2. Ensure Easypanel is using `nixpacks.toml` or the Dockerfile.  
+3. If needed, add the environment variable `PLAYWRIGHT_BROWSERS_PATH=/tmp/playwright-browsers` to allow Playwright to download and install browsers automatically.  
 
-### Erros na Execução do Navegador
+### Browser Execution Errors  
 
-Se o navegador não iniciar corretamente, tente:
+If the browser fails to start correctly, try:  
 
-1. Verificar se todas as dependências do sistema estão instaladas
-2. Modificar a configuração `headless` para `true` 
-3. Adicionar mais memória ao serviço no Easypanel
+1. Verifying all system dependencies are installed.  
+2. Setting `headless` to `true` in the configuration.  
+3. Allocating more memory to the service in Easypanel.  
 
-## Usando Docker em vez de Nixpacks
+## Using Docker Instead of Nixpacks  
 
-Devido aos problemas comuns com Nixpacks, recomendamos **fortemente** usar o Docker para deploy:
+Due to common issues with Nixpacks, we **strongly** recommend using Docker for deployment:  
 
-1. No Easypanel, escolha "Custom" como tipo de projeto
-2. Em "Build settings", selecione **Dockerfile** como builder
-3. O sistema usará o Dockerfile fornecido no repositório, que inclui todas as dependências necessárias
+1. In Easypanel, choose "Custom" as the project type.  
+2. Under "Build settings," select **Dockerfile** as the builder.  
+3. The system will use the provided Dockerfile, which includes all necessary dependencies.  
 
-O Dockerfile foi especialmente configurado para resolver os problemas comuns de dependências e configuração do Python. 
+The Dockerfile is specially configured to resolve common dependency and Python setup issues.
