@@ -100,6 +100,9 @@ RUN apt-get clean && \
     libxext6 \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Rust and Cargo
+RUN curl https://sh.rustup.rs -sSf | sh
+
 # Install Python dependencies
 RUN pip install --no-cache-dir \
     fastapi==0.104.0 \
