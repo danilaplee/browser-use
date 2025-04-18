@@ -90,6 +90,12 @@ def get_llm(model_config: ModelConfig):
                 temperature=model_config.temperature,
                 api_key=model_config.api_key or os.getenv("OPENAI_API_KEY")
             )
+        elif provider == "deepseek":
+            return ChatOpenAI(
+                base_url='https://api.deepseek.com/v1',
+                model='deepseek-chat',
+                api_key=model_config.api_key or os.getenv("DEEPSEEK_API_KEY"),
+            )
         elif provider == "azure":
             return AzureChatOpenAI(
                 model=model_config.model_name,

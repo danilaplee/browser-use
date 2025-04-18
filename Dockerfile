@@ -127,7 +127,7 @@ RUN pip install --no-cache-dir langchain-openai==0.0.5
 
 # Install Playwright browsers
 ENV PLAYWRIGHT_BROWSERS_PATH=/usr/local/share/playwright
-RUN playwright install --with-deps chromium firefox webkit
+RUN playwright install --with-deps chromium
 RUN playwright install-deps
 
 # Create directory for logs
