@@ -1,4 +1,4 @@
-FROM python:3.13.3-slim
+FROM python:3.12-slim
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -99,10 +99,6 @@ RUN apt-get clean && \
     libxdamage1 \
     libxext6 \
     && rm -rf /var/lib/apt/lists/*
-
-# Install Rust and Cargo
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
-RUN source ~/.cargo/env 
 
 # Install Python dependencies
 RUN pip install --no-cache-dir \
