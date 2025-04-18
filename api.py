@@ -12,6 +12,7 @@ from logging_config import setup_logging, log_info, log_error
 from browser import BrowserManager
 import aiohttp
 import traceback
+import os
 
 # Configuração de logging
 logger = logging.getLogger('browser-use.api')
