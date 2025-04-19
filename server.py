@@ -68,6 +68,7 @@ class TaskRequest(BaseModel):
     max_steps: int = 20
     use_vision: bool = True
     generate_gif: bool = True
+    max_failures: int = 3
 
 class AgentResponse(BaseModel):
     task: str
@@ -151,7 +152,8 @@ async def run_agent(
             llm=llm, 
             browser=browser,
             use_vision=request.use_vision,
-            generate_gif=request.generate_gif
+            generate_gif=request.generate_gif,
+            max_failures=request.max_failures
         )
         
         result = await agent.run(max_steps=request.max_steps)
