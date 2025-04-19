@@ -128,9 +128,9 @@ RUN pip install --no-cache-dir \
     posthog==3.0.0
 
 # Install required LangChain packages
-RUN pip install --no-cache-dir langchain==0.2.7
-RUN pip install --no-cache-dir langchain_core==0.2.15
-RUN pip install --no-cache-dir langchain-openai==0.1.15
+RUN pip install --no-cache-dir langchain==0.3.21
+RUN pip install --no-cache-dir langchain_core==0.3.49
+RUN pip install --no-cache-dir langchain-openai==0.3.11
 
 # Install Playwright browsers
 ENV PLAYWRIGHT_BROWSERS_PATH=/usr/local/share/playwright
