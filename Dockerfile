@@ -111,9 +111,9 @@ RUN pip install --no-cache-dir \
     fastapi==0.104.0 \
     uvicorn==0.24.0 \
     playwright==1.40.0 \
-    sqlalchemy[postgresql]==2.0.23 \
+    sqlalchemy[postgresql]==2.0.40 \
     asyncpg==0.29.0 \
-    psycopg2-binary==2.9.9 \
+    psycopg2-binary==2.9.10 \
     python-dotenv==1.0.0 \
     pydantic==2.5.2 \
     pydantic-settings==2.1.0 \
@@ -127,16 +127,13 @@ RUN pip install --no-cache-dir \
     greenlet==3.0.1 \
     posthog==3.0.0 \
     sentence-transformers>=4.0.2 \
+    mem0ai==0.1.88 \
     requests>=2.32.3
 
 # Install required LangChain packages
 RUN pip install --no-cache-dir langchain==0.3.21
 RUN pip install --no-cache-dir langchain_core==0.3.49
 RUN pip install --no-cache-dir langchain-openai==0.3.11
-# Switch to non-root user
-USER appuser
-RUN pip install --no-cache-dir mem0ai==0.1.88
-USER ROOT
 # Install Playwright browsers
 ENV PLAYWRIGHT_BROWSERS_PATH=/usr/local/share/playwright
 RUN playwright install --with-deps chromium firefox webkit
