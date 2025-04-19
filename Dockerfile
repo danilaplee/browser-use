@@ -125,7 +125,7 @@ RUN pip install --no-cache-dir \
     psutil==5.9.6 \
     alembic==1.12.1 \
     greenlet==3.0.1 \
-    posthog==3.0.0 \
+    posthog==3.7.0 \
     sentence-transformers>=4.0.2 \
     mem0ai==0.1.88 \
     requests>=2.32.3
