@@ -7,7 +7,7 @@ on:
 
 jobs:
   build_api:
-      name: Push API
+      name: Push API to Dockerhub
       runs-on: ubuntu-latest
       permissions:
         packages: write
@@ -46,5 +46,5 @@ jobs:
             push: true
             tags: ${{ steps.meta.outputs.tags }}
             labels: ${{ steps.meta.outputs.labels }}
-            cache-from: type=registry,ref=fiendofsound/browser-use-api:main
-            cache-to: type=inline
+            cache-from: type=registry,ref=fiendofsound/browser-use-api:buildcache
+            cache-to: type=registry,ref=fiendofsound/browser-use-api:buildcache,mode=max
