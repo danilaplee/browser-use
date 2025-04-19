@@ -127,7 +127,7 @@ RUN pip install --no-cache-dir \
     posthog==3.7.0 \
     sentence-transformers>=4.0.2 \
     mem0ai==0.1.88 \
-    screeninfo \
+    screeninfo==0.8.1 \
     requests>=2.32.3
 
 # Install required LangChain packages
