@@ -115,7 +115,7 @@ RUN pip install --no-cache-dir \
     psycopg2-binary==2.9.10 \
     python-dotenv==1.0.0 \
     pydantic==2.10.4 \
-    pydantic-settings==2.1.0 \
+    pydantic-settings>=2.1.0 \
     python-jose[cryptography]==3.3.0 \
     passlib[bcrypt]==1.7.4 \
     python-multipart==0.0.6 \
@@ -123,11 +123,11 @@ RUN pip install --no-cache-dir \
     httpx==0.25.2 \
     psutil==5.9.6 \
     alembic==1.12.1 \
-    greenlet==3.1.0 \
+    greenlet==3.1.1 \
     posthog==3.7.0 \
-    sentence-transformers==4.0.2 \
+    sentence-transformers>=4.0.2 \
     mem0ai==0.1.88 \
-    requests==2.32.3
+    requests>=2.32.3
 
 # Install required LangChain packages
 RUN pip install --no-cache-dir langchain==0.3.21
