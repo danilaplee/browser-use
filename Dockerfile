@@ -125,9 +125,10 @@ RUN pip install --no-cache-dir \
     psutil==5.9.6 \
     alembic==1.12.1 \
     greenlet==3.0.1 \
-    posthog==3.0.0 \
-    mem0ai \
-    sentence-transformers>=4.0.2
+    posthog>=3.7.0 \
+    mem0ai==0.1.88 \
+    sentence-transformers>=4.0.2 \
+    requests>=2.32.3
 
 # Install required LangChain packages
 RUN pip install --no-cache-dir langchain==0.3.21
