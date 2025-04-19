@@ -163,7 +163,31 @@ class Agent(Generic[Context]):
 
 		# Initialize state
 		self.state = injected_agent_state or AgentState()
-
+		self.settings = AgentSettings(
+			use_vision=use_vision,
+			use_vision_for_planner=use_vision_for_planner,
+			save_conversation_path=save_conversation_path,
+			save_conversation_path_encoding=save_conversation_path_encoding,
+			max_failures=max_failures,
+			retry_delay=retry_delay,
+			override_system_message=override_system_message,
+			extend_system_message=extend_system_message,
+			max_input_tokens=max_input_tokens,
+			validate_output=validate_output,
+			message_context=message_context,
+			generate_gif=generate_gif,
+			available_file_paths=available_file_paths,
+			include_attributes=include_attributes,
+			max_actions_per_step=max_actions_per_step,
+			tool_calling_method=tool_calling_method,
+			page_extraction_llm=page_extraction_llm,
+			planner_llm=planner_llm,
+			planner_interval=planner_interval,
+			is_planner_reasoning=is_planner_reasoning,
+			enable_memory=enable_memory,
+			memory_interval=memory_interval,
+			memory_config=memory_config,
+		)
 		# Action setup
 		self._setup_action_models()
 		self._set_browser_use_version_and_source()
@@ -176,23 +200,23 @@ class Agent(Generic[Context]):
 		# Handle users trying to use use_vision=True with DeepSeek models
 		if 'deepseek' in self.model_name.lower():
 			logger.warning('⚠️ DeepSeek models do not support use_vision=True yet. Setting use_vision=False for now...')
-			self.use_vision = False
+			self.settings.use_vision = False
 		if 'deepseek' in (self.planner_model_name or '').lower():
 			logger.warning(
 				'⚠️ DeepSeek models do not support use_vision=True yet. Setting use_vision_for_planner=False for now...'
 			)
-			self.use_vision_for_planner = False
+			self.settings.use_vision_for_planner = False
 
 		logger.info(
 			f'🧠 Starting an agent with main_model={self.model_name}'
 			f'{" +tools" if self.tool_calling_method == "function_calling" else ""}'
 			f'{" +rawtools" if self.tool_calling_method == "raw" else ""}'
-			f'{" +vision" if self.use_vision else ""}'
-			# f'{" +memory" if self.enable_memory else ""}, '
+			f'{" +vision" if self.settings.use_vision else ""}'
+			f'{" +memory" if self.settings.enable_memory else ""}, '
 			f'planner_model={self.planner_model_name}'
-			# f'{" +reasoning" if self.is_planner_reasoning else ""}'
-			f'{" +vision" if self.use_vision_for_planner else ""}, '
-			# f'extraction_model={getattr(self.settings.page_extraction_llm, "model_name", None)} '
+			f'{" +reasoning" if self.settings.is_planner_reasoning else ""}'
+			f'{" +vision" if self.settings.use_vision_for_planner else ""}, '
+			f'extraction_model={getattr(self.settings.page_extraction_llm, "model_name", None)} '
 		)
 
 		# Start non-blocking LLM connection verification using create_task, checked later in step()
@@ -205,7 +229,7 @@ class Agent(Generic[Context]):
 		# These will be used for the system prompt to maintain caching
 		self.unfiltered_actions = self.controller.registry.get_prompt_description()
 
-		self.message_context = self._set_message_context()
+		self.settings.message_context = self._set_message_context()
 
 		# Initialize message manager with state
 		# Initial system prompt with all actions - will be updated during each step
@@ -213,25 +237,25 @@ class Agent(Generic[Context]):
 			task=task,
 			system_message=SystemPrompt(
 				action_description=self.unfiltered_actions,
-				max_actions_per_step=max_actions_per_step,
+				max_actions_per_step=self.settings.max_actions_per_step,
 				override_system_message=override_system_message,
 				extend_system_message=extend_system_message,
 			).get_system_message(),
 			settings=MessageManagerSettings(
-				max_input_tokens=max_input_tokens,
-				include_attributes=include_attributes,
-				message_context=message_context,
+				max_input_tokens=self.settings.max_input_tokens,
+				include_attributes=self.settings.include_attributes,
+				message_context=self.settings.message_context,
 				sensitive_data=sensitive_data,
-				available_file_paths=available_file_paths,
+				available_file_paths=self.settings.available_file_paths,
 			),
 			state=self.state.message_manager_state,
 		)
 
-		if enable_memory:
+		if self.settings.enable_memory:
 			memory_settings = MemorySettings(
 				agent_id=self.state.agent_id,
-				interval=memory_interval,
-				config=memory_config,
+				interval=self.settings.memory_interval,
+				config=self.settings.memory_config,
 			)
 
 			# Initialize memory
@@ -262,17 +286,17 @@ class Agent(Generic[Context]):
 		# Telemetry
 		self.telemetry = ProductTelemetry()
 
-		if save_conversation_path:
-			logger.info(f'Saving conversation to {save_conversation_path}')
+		if self.settings.save_conversation_path:
+			logger.info(f'Saving conversation to {self.settings.save_conversation_path}')
 
 	def _set_message_context(self) -> str | None:
 		if self.tool_calling_method == 'raw':
 			# For raw tool calling, only include actions with no filters initially
-			if self.message_context:
-				self.message_context += f'\n\nAvailable actions: {self.unfiltered_actions}'
+			if self.settings.message_context:
+				self.settings.message_context += f'\n\nAvailable actions: {self.unfiltered_actions}'
 			else:
-				self.message_context = f'Available actions: {self.unfiltered_actions}'
-		return self.message_context
+				self.settings.message_context = f'Available actions: {self.unfiltered_actions}'
+		return self.settings.message_context
 
 	def _set_browser_use_version_and_source(self) -> None:
 		"""Get the version and source of the browser-use package (git or pip in a nutshell)"""
@@ -314,7 +338,7 @@ class Agent(Generic[Context]):
 			model = self.llm.model  # type: ignore
 			self.model_name = model if model is not None else 'Unknown'
 
-		if self.planner_llm:
+		if self.settings.planner_llm:
 			if hasattr(self.settings.planner_llm, 'model_name'):
 				self.planner_model_name = self.settings.planner_llm.model_name  # type: ignore
 			elif hasattr(self.settings.planner_llm, 'model'):
@@ -336,7 +360,7 @@ class Agent(Generic[Context]):
 		self.DoneAgentOutput = AgentOutput.type_with_custom_actions(self.DoneActionModel)
 
 	def _set_tool_calling_method(self) -> Optional[ToolCallingMethod]:
-		tool_calling_method = self.tool_calling_method
+		tool_calling_method = self.settings.tool_calling_method
 		if tool_calling_method == 'auto':
 			if 'deepseek-reasoner' in self.model_name or 'deepseek-r1' in self.model_name:
 				return 'raw'
@@ -381,7 +405,7 @@ class Agent(Generic[Context]):
 			active_page = await self.browser_context.get_current_page()
 
 			# generate procedural memory if needed
-			if self.enable_memory and self.memory and self.state.n_steps % self.memory_interval == 0:
+			if self.settings.enable_memory and self.memory and self.state.n_steps % self.settings.memory_interval == 0:
 				self.memory.create_procedural_memory(self.state.n_steps)
 
 			await self._raise_if_stopped_or_paused()
@@ -417,7 +441,7 @@ class Agent(Generic[Context]):
 			self._message_manager.add_state_message(state, self.state.last_result, step_info, self.settings.use_vision)
 
 			# Run planner at specified intervals if planner is configured
-			if self.planner_llm and self.state.n_steps % self.planner_interval == 0:
+			if self.settings.planner_llm and self.state.n_steps % self.settings.planner_interval == 0:
 				plan = await self._run_planner()
 				# add plan before last state message
 				self._message_manager.add_plan(plan, position=-1)
@@ -449,9 +473,9 @@ class Agent(Generic[Context]):
 						await self.register_new_step_callback(state, model_output, self.state.n_steps)
 					else:
 						self.register_new_step_callback(state, model_output, self.state.n_steps)
-				if self.save_conversation_path:
-					target = self.save_conversation_path + f'_{self.state.n_steps}.txt'
-					save_conversation(input_messages, model_output, target, self.save_conversation_path_encoding)
+				if self.settings.save_conversation_path:
+					target = self.settings.save_conversation_path + f'_{self.state.n_steps}.txt'
+					save_conversation(input_messages, model_output, target, self.settings.save_conversation_path_encoding)
 
 				self._message_manager._remove_last_state_message()  # we dont want the whole state in the chat history
 
@@ -527,7 +551,7 @@ class Agent(Generic[Context]):
 		"""Handle all types of errors that can occur during a step"""
 		include_trace = logger.isEnabledFor(logging.DEBUG)
 		error_msg = AgentError.format_error(error, include_trace=include_trace)
-		prefix = f'❌ Result failed {self.state.consecutive_failures + 1}/{self.max_failures} times:\n '
+		prefix = f'❌ Result failed {self.state.consecutive_failures + 1}/{self.settings.max_failures} times:\n '
 		self.state.consecutive_failures += 1
 
 		if 'Browser closed' in error_msg:
@@ -538,7 +562,7 @@ class Agent(Generic[Context]):
 			logger.error(f'{prefix}{error_msg}')
 			if 'Max token limit reached' in error_msg:
 				# cut tokens from history
-				self._message_manager.settings.max_input_tokens = self.max_input_tokens - 500
+				self._message_manager.settings.max_input_tokens = self.settings.max_input_tokens - 500
 				logger.info(
 					f'Cutting tokens from history - new max input tokens: {self._message_manager.settings.max_input_tokens}'
 				)
@@ -686,8 +710,8 @@ class Agent(Generic[Context]):
 				raise ValueError('Could not parse response.')
 
 		# cut the number of actions to max_actions_per_step if needed
-		if len(parsed.action) > self.max_actions_per_step:
-			parsed.action = parsed.action[: self.max_actions_per_step]
+		if len(parsed.action) > self.settings.max_actions_per_step:
+			parsed.action = parsed.action[: self.settings.max_actions_per_step]
 
 		if not (hasattr(self.state, 'paused') and (self.state.paused or self.state.stopped)):
 			log_response(parsed)
@@ -702,7 +726,7 @@ class Agent(Generic[Context]):
 		self.telemetry.capture(
 			AgentRunTelemetryEvent(
 				agent_id=self.state.agent_id,
-				use_vision=self.use_vision,
+				use_vision=self.settings.use_vision,
 				task=self.task,
 				model_name=self.model_name,
 				chat_model_library=self.chat_model_library,
@@ -720,7 +744,7 @@ class Agent(Generic[Context]):
 		await self.step()
 
 		if self.state.history.is_done():
-			if self.validate_output:
+			if self.settings.validate_output:
 				if not await self._validate_output():
 					return True, False
 
@@ -783,8 +807,8 @@ class Agent(Generic[Context]):
 					signal_handler.reset()
 
 				# Check if we should stop due to too many failures
-				if self.state.consecutive_failures >= self.max_failures:
-					logger.error(f'❌ Stopping due to {self.max_failures} consecutive failures')
+				if self.state.consecutive_failures >= self.settings.max_failures:
+					logger.error(f'❌ Stopping due to {self.settings.max_failures} consecutive failures')
 					break
 
 				# Check control flags before each step
@@ -842,10 +866,10 @@ class Agent(Generic[Context]):
 
 			await self.close()
 
-			if self.generate_gif:
+			if self.settings.generate_gif:
 				output_path: str = 'agent_history.gif'
-				if isinstance(self.generate_gif, str):
-					output_path = self.generate_gif
+				if isinstance(self.settings.generate_gif, str):
+					output_path = self.settings.generate_gif
 
 				create_history_gif(task=self.task, history=self.state.history, output_path=output_path)
 
@@ -894,9 +918,9 @@ class Agent(Generic[Context]):
 				result = await self.controller.act(
 					action,
 					self.browser_context,
-					self.page_extraction_llm,
+					self.settings.page_extraction_llm,
 					self.sensitive_data,
-					self.available_file_paths,
+					self.settings.available_file_paths,
 					context=self.context,
 				)
 
@@ -937,9 +961,9 @@ class Agent(Generic[Context]):
 			content = AgentMessagePrompt(
 				state=state,
 				result=self.state.last_result,
-				include_attributes=self.include_attributes,
+				include_attributes=self.settings.include_attributes,
 			)
-			msg = [SystemMessage(content=system_msg), content.get_user_message(self.use_vision)]
+			msg = [SystemMessage(content=system_msg), content.get_user_message(self.settings.use_vision)]
 		else:
 			# if no browser session, we can't validate the output
 			return True
@@ -1210,7 +1234,7 @@ class Agent(Generic[Context]):
 	async def _run_planner(self) -> Optional[str]:
 		"""Run the planner to analyze state and suggest next steps"""
 		# Skip planning if no planner_llm is set
-		if not self.planner_llm:
+		if not self.settings.planner_llm:
 			return None
 
 		# Get current state to filter actions by page
@@ -1227,11 +1251,11 @@ class Agent(Generic[Context]):
 
 		# Create planner message history using full message history with all available actions
 		planner_messages = [
-			PlannerPrompt(all_actions).get_system_message(self.is_planner_reasoning),
+			PlannerPrompt(all_actions).get_system_message(self.settings.is_planner_reasoning),
 			*self._message_manager.get_messages()[1:],  # Use full message history except the first
 		]
 
-		if not self.use_vision_for_planner and self.use_vision:
+		if not self.settings.use_vision_for_planner and self.settings.use_vision:
 			last_state_message: HumanMessage = planner_messages[-1]
 			# remove image from last state message
 			new_msg = ''
@@ -1250,7 +1274,7 @@ class Agent(Generic[Context]):
 
 		# Get planner output
 		try:
-			response = await self.planner_llm.ainvoke(planner_messages)
+			response = await self.settings.planner_llm.ainvoke(planner_messages)
 		except Exception as e:
 			logger.error(f'Failed to invoke planner: {str(e)}')
 			raise LLMException(401, 'LLM API call failed') from e
