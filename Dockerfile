@@ -126,7 +126,6 @@ RUN pip install --no-cache-dir \
     alembic==1.12.1 \
     greenlet==3.0.1 \
     posthog==3.0.0 \
-    mem0ai \
     sentence-transformers>=4.0.2 \
     requests>=2.32.3
 
@@ -134,6 +133,7 @@ RUN pip install --no-cache-dir \
 RUN pip install --no-cache-dir langchain==0.3.21
 RUN pip install --no-cache-dir langchain_core==0.3.49
 RUN pip install --no-cache-dir langchain-openai==0.3.11
+RUN pip install --no-cache-dir mem0ai==0.1.88
 
 # Install Playwright browsers
 ENV PLAYWRIGHT_BROWSERS_PATH=/usr/local/share/playwright
