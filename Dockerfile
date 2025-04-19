@@ -133,8 +133,10 @@ RUN pip install --no-cache-dir \
 RUN pip install --no-cache-dir langchain==0.3.21
 RUN pip install --no-cache-dir langchain_core==0.3.49
 RUN pip install --no-cache-dir langchain-openai==0.3.11
+# Switch to non-root user
+USER appuser
 RUN pip install --no-cache-dir mem0ai==0.1.88
-
+USER ROOT
 # Install Playwright browsers
 ENV PLAYWRIGHT_BROWSERS_PATH=/usr/local/share/playwright
 RUN playwright install --with-deps chromium firefox webkit
