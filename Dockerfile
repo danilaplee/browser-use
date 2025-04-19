@@ -126,7 +126,7 @@ RUN pip install --no-cache-dir \
     alembic==1.12.1 \
     greenlet==3.0.1 \
     posthog==3.0.0 \
-    mem0ai==0.1.88 \
+    mem0ai \
     sentence-transformers>=4.0.2
 
 # Install required LangChain packages
