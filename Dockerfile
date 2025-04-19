@@ -6,7 +6,6 @@ ENV PYTHONUNBUFFERED=1
 ENV PATH="/root/.local/bin:$PATH"
 ENV DISPLAY=:99
 ENV DEBIAN_FRONTEND=noninteractive
-ENV HOME=/root
 # Create non-root user
 RUN useradd -m -u 1000 appuser && \
     mkdir -p /app && \
@@ -76,7 +75,7 @@ RUN apt-get clean && \
 
 # Install Rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-RUN echo 'source $HOME/.cargo/env' >> $HOME/.bashrc
+RUN echo 'source /root/.cargo/env' >> $HOME/.bashrc
 
 # Install additional Playwright dependencies
 RUN apt-get clean && \
