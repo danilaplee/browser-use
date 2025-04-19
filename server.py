@@ -67,6 +67,7 @@ class TaskRequest(BaseModel):
     browser_config: Optional[BrowserConfigModel] = None
     max_steps: int = 20
     use_vision: bool = True
+    generate_gif: bool = True
 
 class AgentResponse(BaseModel):
     task: str
@@ -93,7 +94,7 @@ def get_llm(model_config: ModelConfig):
         elif provider == "deepseek":
             return ChatOpenAI(
                 base_url='https://api.deepseek.com/v1',
-                model='deepseek-chat',
+                model=model_config.model_name or 'deepseek-chat',
                 api_key=model_config.api_key or os.getenv("DEEPSEEK_API_KEY"),
             )
         elif provider == "azure":
@@ -149,7 +150,8 @@ async def run_agent(
             task=request.task, 
             llm=llm, 
             browser=browser,
-            use_vision=request.use_vision
+            use_vision=request.use_vision,
+            generate_gif=request.generate_gif
         )
         
         result = await agent.run(max_steps=request.max_steps)

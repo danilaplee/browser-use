@@ -26,6 +26,15 @@ services:
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/browser-use
+      - PYTHONUNBUFFERED=1
+      - BROWSER_USE_LOGGING_LEVEL=info
+      - ANONYMIZED_TELEMETRY=false
+      - DISPLAY=:99
+      - RESOLUTION=1920x1080x24
+      - VNC_PASSWORD=vncpassword
+      - CHROME_PERSISTENT_SESSION=true
+      - RESOLUTION_WIDTH=1920
+      - RESOLUTION_HEIGHT=1080
     ports:
       - "8000:8000"
     networks:
