@@ -34,7 +34,7 @@ jobs:
           id: meta
           uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
           with:
-            images: fiendofsound/browser-use-api
+            images: browseruse/browser-use
 
         - name: Build and push Docker image
           id: push
@@ -46,5 +46,5 @@ jobs:
             push: true
             tags: ${{ steps.meta.outputs.tags }}
             labels: ${{ steps.meta.outputs.labels }}
-            cache-from: type=registry,ref=fiendofsound/browser-use-api:buildcache
-            cache-to: type=registry,ref=fiendofsound/browser-use-api:buildcache,mode=max
+            cache-from: type=registry,ref=browseruse/browser-use:buildcache
+            cache-to: type=registry,ref=browseruse/browser-use:buildcache,mode=max
