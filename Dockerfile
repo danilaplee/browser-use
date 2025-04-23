@@ -162,4 +162,4 @@ USER appuser
 EXPOSE 8000
 
 # Command to start the application
-CMD ["xvfb-run", "--auto-servernum", "--server-num=1", "--server-args='-screen 0, 1920x1080x24'", "uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
