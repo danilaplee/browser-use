@@ -170,7 +170,7 @@ class BrowserManager:
             log_info(logger, "Iniciando navegador")
             playwright = await async_playwright().start()
             self.browser = await playwright.chromium.launch(headless=True)
-            self.context = await self.browser.new_context()
+            self.context = await self.browser.new_context(record_video_dir="videos/")
             self.page = await self.context.new_page()
             log_info(logger, "Navegador iniciado com sucesso")
         except Exception as e:

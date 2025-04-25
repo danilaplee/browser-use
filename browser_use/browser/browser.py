@@ -154,8 +154,6 @@ class Browser:
 
 		browser = await self._setup_browser(playwright)
 		self.playwright_browser = browser
-		self.video_context = await browser.new_context(record_video_dir="videos/")
-		await self.video_context.close()
 		return self.playwright_browser
 
 	async def _setup_remote_cdp_browser(self, playwright: Playwright) -> PlaywrightBrowser:

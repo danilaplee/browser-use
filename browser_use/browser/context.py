@@ -163,7 +163,7 @@ class BrowserContextConfig(BaseModel):
 	)
 	no_viewport: Optional[bool] = None
 
-	save_recording_path: str | None = None
+	save_recording_path: str | None = "/videos"
 	save_downloads_path: str | None = None
 	save_har_path: str | None = None
 	trace_path: str | None = None
