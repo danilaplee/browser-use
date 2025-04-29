@@ -36,15 +36,7 @@ services:
       - RESOLUTION_WIDTH=1920
       - RESOLUTION_HEIGHT=1080
     ports:
-      - "8000:8000"
-    networks:
-      - db-tier
-      - default
-  adminer:
-    image: adminer
-    restart: always
-    ports:
-      - 8080:8080
+      - "9000:8000"
     networks:
       - db-tier
       - default
