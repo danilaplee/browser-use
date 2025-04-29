@@ -160,6 +160,7 @@ class Agent(Generic[Context]):
 		self.llm = llm
 		self.controller = controller
 		self.sensitive_data = sensitive_data
+		self.videopath = None
 
 		# Initialize state
 		self.state = injected_agent_state or AgentState()
@@ -863,6 +864,7 @@ class Agent(Generic[Context]):
 					total_duration_seconds=self.state.history.total_duration_seconds(),
 				)
 			)
+			self.videopath = await self.browser_context.active_tab.video.path()
 
 			await self.close()
 
@@ -940,7 +942,6 @@ class Agent(Generic[Context]):
 					# Add a result for the cancelled action
 					results.append(ActionResult(error='The action was cancelled due to Ctrl+C', include_in_memory=True))
 				raise InterruptedError('Action cancelled by user')
-
 		return results
 
 	async def _validate_output(self) -> bool:

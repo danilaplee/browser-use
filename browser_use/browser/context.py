@@ -172,7 +172,7 @@ class BrowserContextConfig(BaseModel):
 		'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36  (KHTML, like Gecko) Chrome/85.0.4183.102 Safari/537.36'
 	)
 
-	highlight_elements: bool = True
+	highlight_elements: bool = False
 	viewport_expansion: int = 0
 	allowed_domains: list[str] | None = None
 	include_dynamic_attributes: bool = True
@@ -449,9 +449,8 @@ class BrowserContext:
 				java_script_enabled=True,
 				bypass_csp=self.config.disable_security,
 				ignore_https_errors=self.config.disable_security,
-				record_video_dir=self.config.save_recording_path,
-				record_video_size=self.config.browser_window_size.model_dump(),
-				record_har_path=self.config.save_har_path,
+				record_video_dir="videos/",
+				record_video_size={"width": 1280, "height": 720},
 				locale=self.config.locale,
 				http_credentials=self.config.http_credentials,
 				is_mobile=self.config.is_mobile,

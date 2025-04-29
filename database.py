@@ -9,29 +9,29 @@ from sqlalchemy.sql import select
 from contextlib import contextmanager
 import json
 
-# Configuração de logging
+# Logging configuration
 logger = logging.getLogger('browser-use.database')
 
 load_dotenv()
 
-# Configuração do banco de dados
+# Database configuration
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./browser_use.db")
 
-log_info(logger, "Inicializando conexão com o banco de dados", {
+log_info(logger, "Initializing database connection", {
     "database_url": DATABASE_URL,
     "type": "SQLite"
 })
 
-# Configuração do banco de dados
+# Database setup
 engine = create_engine(
     DATABASE_URL
-    # connect_args={"check_same_thread": False}  # Necessário para SQLite
+    # connect_args={"check_same_thread": False}  # Required for SQLite
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
 
-# Classes para converter JSON para string e vice-versa (necessário para SQLite)
+# Classes to convert JSON to string and vice versa (required for SQLite)
 class JSONEncodedDict(TypeDecorator):
     impl = String
     cache_ok = True
@@ -46,15 +46,15 @@ class JSONEncodedDict(TypeDecorator):
             return json.loads(value)
         return None
 
-# Modelos
+# Models
 class Task(Base):
     __tablename__ = "tasks"
 
     id = Column(Integer, primary_key=True, index=True)
     task = Column(String, nullable=False)
-    config = Column(JSONEncodedDict, nullable=True)  # Usando JSONEncodedDict
+    config = Column(JSONEncodedDict, nullable=True)  # Using JSONEncodedDict
     status = Column(String, nullable=False)
-    result = Column(JSONEncodedDict, nullable=True)  # Usando JSONEncodedDict
+    result = Column(JSONEncodedDict, nullable=True)  # Using JSONEncodedDict
     error = Column(String, nullable=True)
     created_at = Column(DateTime, nullable=False)
     started_at = Column(DateTime, nullable=True)
@@ -79,7 +79,7 @@ class Session(Base):
     error = Column(String, nullable=True)
     created_at = Column(DateTime, nullable=False)
 
-# Função para obter sessão do banco de dados
+# Function to get database session
 @contextmanager
 def get_db():
     db = SessionLocal()
@@ -92,19 +92,19 @@ def get_db():
     finally:
         db.close()
 
-# Função para inicializar o banco
+# Function to initialize database
 def init_db():
-    log_info(logger, "Inicializando banco de dados")
+    log_info(logger, "Initializing database")
     try:
         Base.metadata.create_all(bind=engine)
-        log_info(logger, "Tabelas do banco de dados criadas com sucesso")
+        log_info(logger, "Database tables created successfully")
     except Exception as e:
-        log_error(logger, "Erro ao inicializar banco de dados", {
+        log_error(logger, "Error initializing database", {
             "error": str(e)
         }, exc_info=True)
         raise
 
-# Funções CRUD para Task (versão síncrona)
+# CRUD functions for Task (synchronous version)
 def create_task(db: Session, task_data: dict) -> Task:
     try:
         task = Task(
@@ -118,7 +118,7 @@ def create_task(db: Session, task_data: dict) -> Task:
         db.refresh(task)
         return task
     except Exception as e:
-        log_error(logger, "Erro ao criar tarefa", {
+        log_error(logger, "Error creating task", {
             "error": str(e)
         }, exc_info=True)
         raise
@@ -127,7 +127,7 @@ def get_task(db: Session, task_id: int) -> Task:
     try:
         return db.query(Task).filter(Task.id == task_id).first()
     except Exception as e:
-        log_error(logger, "Erro ao obter tarefa", {
+        log_error(logger, "Error getting task", {
             "task_id": task_id,
             "error": str(e)
         }, exc_info=True)
@@ -143,7 +143,7 @@ def update_task(db: Session, task_id: int, task_data: dict) -> Task:
             db.refresh(task)
         return task
     except Exception as e:
-        log_error(logger, "Erro ao atualizar tarefa", {
+        log_error(logger, "Error updating task", {
             "task_id": task_id,
             "error": str(e)
         }, exc_info=True)
@@ -153,48 +153,48 @@ def get_tasks(db: Session, skip: int = 0, limit: int = 100) -> list[Task]:
     try:
         return db.query(Task).offset(skip).limit(limit).all()
     except Exception as e:
-        log_error(logger, "Erro ao listar tarefas", {
+        log_error(logger, "Error listing tasks", {
             "error": str(e)
         }, exc_info=True)
         raise
 
-# Funções para Session
+# Functions for Session
 def get_sessions(db: Session, skip: int = 0, limit: int = 100) -> list[Session]:
-    """Lista todas as sessões com paginação"""
+    """List all sessions with pagination"""
     try:
         result = db.query(Session).offset(skip).limit(limit).all()
         return result
     except Exception as e:
-        log_error(logger, "Erro ao listar sessões", {
+        log_error(logger, "Error listing sessions", {
             "error": str(e)
         }, exc_info=True)
         raise
 
 def get_session(db: Session, session_id: int) -> Session:
-    """Obtém uma sessão pelo ID"""
+    """Get a session by ID"""
     try:
         return db.query(Session).filter(Session.id == session_id).first()
     except Exception as e:
-        log_error(logger, "Erro ao obter sessão", {
+        log_error(logger, "Error getting session", {
             "session_id": session_id,
             "error": str(e)
         }, exc_info=True)
         raise
 
 def get_task_sessions(db: Session, task_id: int) -> list[Session]:
-    """Obtém todas as sessões de uma tarefa"""
+    """Get all sessions for a task"""
     try:
         result = db.query(Session).filter(Session.task_id == task_id).all()
         return result
     except Exception as e:
-        log_error(logger, "Erro ao obter sessões da tarefa", {
+        log_error(logger, "Error getting task sessions", {
             "task_id": task_id,
             "error": str(e)
         }, exc_info=True)
         raise
 
 def delete_task(db: Session, task_id: int) -> bool:
-    """Remove uma tarefa do banco de dados"""
+    """Remove a task from database"""
     try:
         task = get_task(db, task_id)
         if task:
@@ -203,8 +203,8 @@ def delete_task(db: Session, task_id: int) -> bool:
             return True
         return False
     except Exception as e:
-        log_error(logger, "Erro ao deletar tarefa", {
+        log_error(logger, "Error deleting task", {
             "task_id": task_id,
             "error": str(e)
         }, exc_info=True)
-        raise 
+        raise
