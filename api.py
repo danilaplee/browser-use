@@ -14,21 +14,21 @@ import aiohttp
 import traceback
 import os
 
-# Configuração de logging
+# Logging configuration
 logger = logging.getLogger('browser-use.api')
 
 router = APIRouter(prefix="/api/v1")
 browser_manager = BrowserManager()
 
-# Configurações do sistema
-MAX_CONCURRENT_TASKS = 2  # Será ajustado dinamicamente baseado nos recursos
+# System settings
+MAX_CONCURRENT_TASKS = 2  # Will be adjusted dynamically based on resources
 MAX_QUEUE_SIZE = 10
 
-# Fila de tasks
+# Task queue
 task_queue = asyncio.Queue(maxsize=MAX_QUEUE_SIZE)
 running_tasks = set()
 
-# Modelos Pydantic
+# Pydantic models
 class LLMConfig(BaseModel):
     provider: str
     model_name: str
@@ -80,13 +80,13 @@ class SystemMetrics(BaseModel):
     max_concurrent_tasks: int
     available_slots: int
 
-# URLs dos webhooks
+# Webhook URLs
 ERROR_WEBHOOK_URL = os.getenv("ERROR_WEBHOOK_URL","https://vrautomatize-n8n.snrhk1.easypanel.host/webhook/browser-use-vra-handler")
 NOTIFY_WEBHOOK_URL = os.getenv("NOTIFY_WEBHOOK_URL","https://vrautomatize-n8n.snrhk1.easypanel.host/webhook/notify-run")
 METRICS_WEBHOOK_URL = os.getenv("METRICS_WEBHOOK_URL","https://vrautomatize-n8n.snrhk1.easypanel.host/webhook/status")
 
 async def send_error_to_webhook(error: str, context: str, task_id: Optional[int] = None):
-    """Envia informações de erro para o webhook"""
+    """Send error information to webhook"""
     try:
         async with aiohttp.ClientSession() as session:
             payload = {
@@ -98,12 +98,12 @@ async def send_error_to_webhook(error: str, context: str, task_id: Optional[int]
             }
             async with session.post(ERROR_WEBHOOK_URL, json=payload) as response:
                 if response.status != 200:
-                    logger.error(f"Falha ao enviar erro para webhook: {response.status}")
+                    logger.error(f"Failed to send error to webhook: {response.status}")
     except Exception as e:
-        logger.error(f"Erro ao enviar para webhook: {str(e)}")
+        logger.error(f"Error sending to webhook: {str(e)}")
 
 async def notify_new_run(task_id: int, task: str, config: Dict[str, Any]):
-    """Notifica o webhook sobre uma nova tarefa"""
+    """Notify webhook about a new task"""
     try:
         async with aiohttp.ClientSession() as session:
             payload = {
@@ -114,12 +114,12 @@ async def notify_new_run(task_id: int, task: str, config: Dict[str, Any]):
             }
             async with session.post(NOTIFY_WEBHOOK_URL, json=payload) as response:
                 if response.status != 200:
-                    logger.error(f"Falha ao notificar nova tarefa: {response.status}")
+                    logger.error(f"Failed to notify about new task: {response.status}")
     except Exception as e:
-        logger.error(f"Erro ao notificar nova tarefa: {str(e)}")
+        logger.error(f"Error notifying about new task: {str(e)}")
 
 async def send_metrics_to_webhook(metrics: Dict[str, Any]):
-    """Envia métricas do sistema para o webhook"""
+    """Send system metrics to webhook"""
     try:
         async with aiohttp.ClientSession() as session:
             payload = {
@@ -128,43 +128,43 @@ async def send_metrics_to_webhook(metrics: Dict[str, Any]):
             }
             async with session.post(METRICS_WEBHOOK_URL, json=payload) as response:
                 if response.status != 200:
-                    logger.error(f"Falha ao enviar métricas para webhook: {response.status}")
+                    logger.error(f"Failed to send metrics to webhook: {response.status}")
     except Exception as e:
-        logger.error(f"Erro ao enviar métricas para webhook: {str(e)}")
+        logger.error(f"Error sending metrics to webhook: {str(e)}")
 
-# Função para calcular recursos disponíveis
+# Function to calculate available resources
 def calculate_max_tasks():
     cpu_count = psutil.cpu_count()
     memory = psutil.virtual_memory()
     
-    # Considerando que cada task usa ~0.5 CPU e 400MB RAM
-    max_by_cpu = int(cpu_count * 2)  # 2 tasks por CPU
-    max_by_memory = int(memory.available / (400 * 1024 * 1024))  # 400MB por task
+    # Considering each task uses ~0.5 CPU and 400MB RAM
+    max_by_cpu = int(cpu_count * 2)  # 2 tasks per CPU
+    max_by_memory = int(memory.available / (400 * 1024 * 1024))  # 400MB per task
     
-    # Limite máximo baseado em recursos
+    # Maximum limit based on resources
     max_tasks = min(max_by_cpu, max_by_memory)
     
-    # Limite máximo absoluto de 32 tasks
+    # Absolute maximum limit of 32 tasks
     return min(max_tasks, 32)
 
-# Função para executar uma task
+# Function to execute a task
 async def execute_task(task_id: int, task: str, config: Dict[str, Any], db: Session):
     try:
-        # Atualizar status para running
+        # Update status to running
         db_task = db.query(Task).filter(Task.id == task_id).first()
         if db_task:
             db_task.status = "running"
             db_task.started_at = datetime.utcnow()
             db.commit()
 
-        # Configurar o navegador
+        # Configure browser
         browser_config = BrowserConfig(
             headless=config.get("browser_config", {}).get("headless", True),
             disable_security=config.get("browser_config", {}).get("disable_security", True),
             extra_chromium_args=config.get("browser_config", {}).get("extra_chromium_args", [])
         )
 
-        # Executar a task
+        # Execute task
         result = await browser_manager.execute_task(
             task=task,
             config={
@@ -175,7 +175,7 @@ async def execute_task(task_id: int, task: str, config: Dict[str, Any], db: Sess
             }
         )
 
-        # Atualizar status para completed
+        # Update status to completed
         if db_task:
             db_task.status = "completed"
             db_task.result = json.dumps(result)
@@ -183,7 +183,7 @@ async def execute_task(task_id: int, task: str, config: Dict[str, Any], db: Sess
             db.commit()
 
     except Exception as e:
-        # Atualizar status para failed
+        # Update status to failed
         if db_task:
             db_task.status = "failed"
             db_task.error = str(e)
@@ -198,7 +198,7 @@ async def execute_task(task_id: int, task: str, config: Dict[str, Any], db: Sess
         except:
             pass
 
-# Função para processar a fila
+# Function to process the queue
 async def process_queue():
     while True:
         try:
@@ -206,43 +206,43 @@ async def process_queue():
                 task_id, task, config = await task_queue.get()
                 running_tasks.add(task_id)
                 
-                # Criar uma nova sessão do banco de dados para cada tarefa
+                # Create new database session for each task
                 db = SessionLocal()
                 try:
                     asyncio.create_task(execute_task(task_id, task, config, db))
                 except Exception as e:
-                    log_error(logger, f"Erro ao criar tarefa: {str(e)}")
+                    log_error(logger, f"Error creating task: {str(e)}")
                     await send_error_to_webhook(str(e), "process_queue", task_id)
                     running_tasks.remove(task_id)
                     db.close()
                 
             await asyncio.sleep(1)
         except Exception as e:
-            log_error(logger, f"Erro ao processar fila: {str(e)}")
+            log_error(logger, f"Error processing queue: {str(e)}")
             await send_error_to_webhook(str(e), "process_queue")
             await asyncio.sleep(1)
 
-# Iniciar processamento da fila
+# Start queue processing
 asyncio.create_task(process_queue())
 
-# Função para coletar métricas periodicamente
+# Function to collect metrics periodically
 async def collect_metrics_periodically():
-    """Coleta métricas do sistema periodicamente e ajusta o limite de tarefas simultâneas"""
+    """Collect system metrics periodically and adjust concurrent task limit"""
     while True:
         try:
-            # Atualizar o limite de tarefas simultâneas baseado nos recursos
+            # Update concurrent task limit based on resources
             global MAX_CONCURRENT_TASKS
             MAX_CONCURRENT_TASKS = calculate_max_tasks()
             
-            # Coletar métricas
+            # Collect metrics
             with get_db() as db:
-                # Obtém estatísticas do banco de dados
+                # Get database statistics
                 total_tasks = db.query(Task).count()
                 completed_tasks = db.query(Task).filter(Task.status == "completed").count()
                 failed_tasks = db.query(Task).filter(Task.status == "failed").count()
                 running_tasks = db.query(Task).filter(Task.status == "running").count()
 
-                # Obtém métricas do sistema
+                # Get system metrics
                 cpu_percent = psutil.cpu_percent()
                 memory = psutil.virtual_memory()
                 disk = psutil.disk_usage('/')
@@ -263,33 +263,33 @@ async def collect_metrics_periodically():
                     }
                 }
 
-                # Log das métricas atuais
-                log_info(logger, "Métricas do sistema atualizadas", metrics)
+                # Log current metrics
+                log_info(logger, "Updated system metrics", metrics)
                 
-                # Enviar métricas para o webhook
+                # Send metrics to webhook
                 await send_metrics_to_webhook(metrics)
             
-            # Aguardar 30 segundos antes da próxima coleta
+            # Wait 30 seconds before next collection
             await asyncio.sleep(30)
             
         except Exception as e:
-            log_error(logger, f"Erro ao coletar métricas: {str(e)}")
+            log_error(logger, f"Error collecting metrics: {str(e)}")
             await send_error_to_webhook(str(e), "collect_metrics_periodically")
-            await asyncio.sleep(30)  # Aguardar mesmo em caso de erro
+            await asyncio.sleep(30)  # Wait even if error occurs
 
-# Iniciar coleta periódica de métricas
+# Start periodic metrics collection
 asyncio.create_task(collect_metrics_periodically())
 
 @router.post("/run")
 async def run_task(request: TaskRequest):
-    """Executa uma nova tarefa de automação"""
+    """Execute a new automation task"""
     try:
-        # Verifica se o BrowserManager está inicializado
+        # Check if BrowserManager is initialized
         if not browser_manager.browser:
             await browser_manager.start()
-            log_info(logger, "BrowserManager inicializado no endpoint /run")
+            log_info(logger, "BrowserManager initialized in /run endpoint")
 
-        # Criar nova tarefa no banco de dados
+        # Create new task in database
         with get_db() as db:
             db_task = Task(
                 task=request.task,
@@ -307,31 +307,31 @@ async def run_task(request: TaskRequest):
             db.commit()
             db.refresh(db_task)
 
-            # Notificar sobre a nova tarefa
+            # Notify about new task
             await notify_new_run(
                 task_id=db_task.id,
                 task=request.task,
                 config=request.model_dump()
             )
 
-            # Adicionar à fila
+            # Add to queue
             await task_queue.put((db_task.id, request.task, request.model_dump()))
 
             return {"task_id": db_task.id}
 
     except Exception as e:
-        log_error(logger, f"Erro ao executar tarefa: {str(e)}")
+        log_error(logger, f"Error executing task: {str(e)}")
         await send_error_to_webhook(str(e), "run_task")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/task/{task_id}/status")
 async def get_task_status(task_id: int):
-    """Retorna o status de uma tarefa"""
+    """Return task status"""
     try:
         with get_db() as db:
             task = db.query(Task).filter(Task.id == task_id).first()
             if not task:
-                raise HTTPException(status_code=404, detail="Tarefa não encontrada")
+                raise HTTPException(status_code=404, detail="Task not found")
 
             return {
                 "task_id": task.id,
@@ -341,22 +341,22 @@ async def get_task_status(task_id: int):
             }
 
     except Exception as e:
-        log_error(logger, f"Erro ao obter status da tarefa: {str(e)}")
+        log_error(logger, f"Error getting task status: {str(e)}")
         await send_error_to_webhook(str(e), "get_task_status", task_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/metrics")
 async def get_metrics():
-    """Retorna métricas do sistema"""
+    """Return system metrics"""
     try:
         with get_db() as db:
-            # Obtém estatísticas do banco de dados
+            # Get database statistics
             total_tasks = db.query(Task).count()
             completed_tasks = db.query(Task).filter(Task.status == "completed").count()
             failed_tasks = db.query(Task).filter(Task.status == "failed").count()
             running_tasks = db.query(Task).filter(Task.status == "running").count()
 
-            # Obtém métricas do sistema
+            # Get system metrics
             cpu_percent = psutil.cpu_percent()
             memory = psutil.virtual_memory()
             disk = psutil.disk_usage('/')
@@ -377,12 +377,12 @@ async def get_metrics():
                 }
             }
 
-            # Enviar métricas para o webhook
+            # Send metrics to webhook
             await send_metrics_to_webhook(metrics)
 
             return metrics
 
     except Exception as e:
-        log_error(logger, f"Erro ao obter métricas: {str(e)}")
+        log_error(logger, f"Error getting metrics: {str(e)}")
         await send_error_to_webhook(str(e), "get_metrics")
-        raise HTTPException(status_code=500, detail=str(e)) 
+        raise HTTPException(status_code=500, detail=str(e))

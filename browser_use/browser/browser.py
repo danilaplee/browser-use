@@ -130,7 +130,6 @@ class Browser:
 		self.config = config or BrowserConfig()
 		self.playwright: Playwright | None = None
 		self.playwright_browser: PlaywrightBrowser | None = None
-		self.video_context = None
 
 	async def new_context(self, config: BrowserContextConfig | None = None) -> BrowserContext:
 		"""Create a browser context"""

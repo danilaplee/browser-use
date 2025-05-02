@@ -10,7 +10,7 @@ from collections import defaultdict
 import json
 from logging_config import setup_logging, log_info, log_error, log_debug, log_warning
 
-# Configuração de logging
+# Logging configuration
 logger = logging.getLogger('browser-use.browser')
 
 class MetricsCollector:
@@ -44,7 +44,7 @@ class BrowserSession:
         }
 
     async def close(self):
-        """Fecha a sessão do navegador"""
+        """Close the browser session"""
         if self.page:
             await self.page.close()
         if self.context:
@@ -61,25 +61,25 @@ class SessionPool:
         self._lock = asyncio.Lock()
         self.metrics_collector = MetricsCollector()
         self._cache = {}
-        self._cache_ttl = 300  # 5 minutos
+        self._cache_ttl = 300  # 5 minutes
 
     def _cache_key(self, task: str, config: Dict[str, Any]) -> str:
         return f"{task}:{json.dumps(config, sort_keys=True)}"
 
     async def initialize(self):
-        """Inicializa o Playwright se necessário"""
+        """Initialize Playwright if needed"""
         if not self.playwright:
             self.playwright = await async_playwright().start()
 
     async def get_session(self) -> BrowserSession:
-        """Obtém uma sessão disponível ou cria uma nova"""
+        """Get an available session or create a new one"""
         async with self._lock:
             start_time = time.time()
             
-            # Limpa sessões inativas
+            # Clean up inactive sessions
             await self._cleanup_inactive_sessions()
 
-            # Tenta encontrar uma sessão disponível
+            # Try to find an available session
             for session in self.sessions:
                 if not session.is_busy:
                     session.is_busy = True
@@ -87,13 +87,13 @@ class SessionPool:
                     self.metrics_collector.record_metric("session_wait_time", time.time() - start_time)
                     return session
 
-            # Se não encontrou e pode criar nova sessão
+            # If none found and can create new session
             if len(self.sessions) < self.max_sessions:
                 session = await self._create_new_session()
                 self.metrics_collector.record_metric("session_wait_time", time.time() - start_time)
                 return session
 
-            # Aguarda uma sessão ficar disponível
+            # Wait for a session to become available
             while True:
                 for session in self.sessions:
                     if not session.is_busy:
@@ -104,13 +104,13 @@ class SessionPool:
                 await asyncio.sleep(0.1)
 
     async def release_session(self, session: BrowserSession):
-        """Libera uma sessão para reuso"""
+        """Release a session for reuse"""
         async with self._lock:
             session.is_busy = False
             session.last_used = datetime.now()
 
     async def _create_new_session(self) -> BrowserSession:
-        """Cria uma nova sessão do navegador"""
+        """Create a new browser session"""
         start_time = time.time()
         
         if not self.playwright:
@@ -131,7 +131,7 @@ class SessionPool:
         return session
 
     async def _cleanup_inactive_sessions(self):
-        """Remove sessões inativas que excederam o timeout"""
+        """Remove inactive sessions that exceeded timeout"""
         now = datetime.now()
         sessions_to_remove = []
         
@@ -146,7 +146,7 @@ class SessionPool:
         self.metrics_collector.record_metric("active_sessions", len(self.sessions))
 
     def get_metrics(self) -> Dict[str, Any]:
-        """Retorna métricas do pool de sessões"""
+        """Return session pool metrics"""
         metrics = self.metrics_collector.get_metrics()
         metrics.update({
             "active_sessions": len(self.sessions),
@@ -160,95 +160,95 @@ class BrowserManager:
         self.browser = None
         self.context = None
         self.page = None
-        log_info(logger, "BrowserManager inicializado")
+        log_info(logger, "BrowserManager initialized")
         self.session_pool = SessionPool()
         self.metrics_collector = MetricsCollector()
 
     async def start(self):
-        """Inicia o navegador e configura o contexto"""
+        """Start the browser and configure context"""
         try:
-            log_info(logger, "Iniciando navegador")
+            log_info(logger, "Starting browser")
             playwright = await async_playwright().start()
             self.browser = await playwright.chromium.launch(headless=True)
             self.context = await self.browser.new_context(record_video_dir="videos/")
             self.page = await self.context.new_page()
-            log_info(logger, "Navegador iniciado com sucesso")
+            log_info(logger, "Browser started successfully")
         except Exception as e:
-            log_error(logger, "Erro ao iniciar navegador", {
+            log_error(logger, "Error starting browser", {
                 "error": str(e)
             }, exc_info=True)
             raise
 
     async def navigate(self, url: str):
-        """Navega para uma URL específica"""
+        """Navigate to a specific URL"""
         try:
-            log_info(logger, "Navegando para URL", {
+            log_info(logger, "Navigating to URL", {
                 "url": url
             })
             await self.page.goto(url)
-            log_debug(logger, "Navegação concluída", {
+            log_debug(logger, "Navigation completed", {
                 "url": url
             })
         except Exception as e:
-            log_error(logger, "Erro ao navegar para URL", {
+            log_error(logger, "Error navigating to URL", {
                 "url": url,
                 "error": str(e)
             }, exc_info=True)
             raise
 
     async def close(self):
-        """Fecha o navegador e limpa os recursos"""
+        """Close the browser and clean up resources"""
         try:
-            log_info(logger, "Fechando navegador")
+            log_info(logger, "Closing browser")
             if self.page:
                 await self.page.close()
             if self.context:
                 await self.context.close()
             if self.browser:
                 await self.browser.close()
-            log_info(logger, "Navegador fechado com sucesso")
+            log_info(logger, "Browser closed successfully")
         except Exception as e:
-            log_error(logger, "Erro ao fechar navegador", {
+            log_error(logger, "Error closing browser", {
                 "error": str(e)
             }, exc_info=True)
             raise
 
     async def get_page_content(self) -> str:
-        """Obtém o conteúdo da página atual"""
+        """Get current page content"""
         try:
-            log_debug(logger, "Obtendo conteúdo da página")
+            log_debug(logger, "Getting page content")
             content = await self.page.content()
-            log_debug(logger, "Conteúdo obtido com sucesso")
+            log_debug(logger, "Content retrieved successfully")
             return content
         except Exception as e:
-            log_error(logger, "Erro ao obter conteúdo da página", {
+            log_error(logger, "Error getting page content", {
                 "error": str(e)
             }, exc_info=True)
             raise
 
     async def execute_script(self, script: str):
-        """Executa um script JavaScript na página"""
+        """Execute a JavaScript script on the page"""
         try:
-            log_debug(logger, "Executando script", {
+            log_debug(logger, "Executing script", {
                 "script": script
             })
             result = await self.page.evaluate(script)
-            log_debug(logger, "Script executado com sucesso")
+            log_debug(logger, "Script executed successfully")
             return result
         except Exception as e:
-            log_error(logger, "Erro ao executar script", {
+            log_error(logger, "Error executing script", {
                 "script": script,
                 "error": str(e)
             }, exc_info=True)
             raise
 
     async def execute_task(self, task: str, config: Dict[str, Any]) -> Dict[str, Any]:
-        """Executa uma tarefa de automação"""
+        """Execute an automation task"""
         session = None
         start_time = time.time()
         
         try:
-            # Verifica cache
+            # Check cache
             cache_key = self.session_pool._cache_key(task, config)
             if cache_key in self.session_pool._cache:
                 cached_result = self.session_pool._cache[cache_key]
@@ -256,10 +256,10 @@ class BrowserManager:
                     self.metrics_collector.record_metric("cache_hits", 1)
                     return cached_result["result"]
 
-            # Obtém uma sessão do pool
+            # Get a session from the pool
             session = await self.session_pool.get_session()
 
-            # Configurações padrão
+            # Default settings
             default_config = {
                 "timeout": 30000,
                 "wait_until": "networkidle",
@@ -267,10 +267,10 @@ class BrowserManager:
             }
             config = {**default_config, **config}
 
-            # Executa a tarefa
+            # Execute the task
             result = await self._execute_task_internal(session, task, config)
-            
-            # Atualiza cache
+            await session.close()
+            # Update cache
             self.session_pool._cache[cache_key] = {
                 "result": result,
                 "timestamp": time.time()
@@ -280,7 +280,7 @@ class BrowserManager:
             return {"success": True, "result": result}
 
         except Exception as e:
-            logger.error(f"Erro ao executar tarefa: {str(e)}")
+            logger.error(f"Error executing task: {str(e)}")
             self.metrics_collector.record_metric("task_errors", 1)
             return {"success": False, "error": str(e)}
 
@@ -289,7 +289,7 @@ class BrowserManager:
                 await self.session_pool.release_session(session)
 
     async def _execute_task_internal(self, session: BrowserSession, task: str, config: Dict[str, Any]) -> Any:
-        """Executa a lógica interna da tarefa"""
+        """Execute internal task logic"""
         if task.startswith("navigate:"):
             url = task.split(":", 1)[1]
             await session.page.goto(url, timeout=config["timeout"], wait_until=config["wait_until"])
@@ -302,10 +302,10 @@ class BrowserManager:
             return {"screenshot": screenshot}
         
         else:
-            raise ValueError(f"Tipo de tarefa não suportado: {task}")
+            raise ValueError(f"Unsupported task type: {task}")
 
     def get_metrics(self) -> Dict[str, Any]:
-        """Retorna métricas do gerenciador de navegador"""
+        """Return browser manager metrics"""
         metrics = self.metrics_collector.get_metrics()
         metrics.update(self.session_pool.get_metrics())
-        return metrics 
+        return metrics

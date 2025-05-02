@@ -67,8 +67,10 @@ class TaskRequest(BaseModel):
     browser_config: Optional[BrowserConfigModel] = None
     max_steps: int = 20
     use_vision: bool = True
-    generate_gif: bool = True
+    generate_gif: bool = False
     max_failures: int = 3
+    memory_interval: int = 10
+    planner_interval: int = 1
 
 class AgentResponse(BaseModel):
     task: str
@@ -76,6 +78,7 @@ class AgentResponse(BaseModel):
     success: bool
     steps_executed: int
     error: Optional[str] = None
+    videopath: Optional[str] = None
 
 # Function to get LLM based on configuration
 def get_llm(model_config: ModelConfig):
@@ -153,7 +156,9 @@ async def run_agent(
             browser=browser,
             use_vision=request.use_vision,
             generate_gif=request.generate_gif,
-            max_failures=request.max_failures
+            max_failures=request.max_failures,
+            memory_interval=request.memory_interval,
+            planner_interval=request.planner_interval
         )
         
         result = await agent.run(max_steps=request.max_steps)
@@ -161,7 +166,7 @@ async def run_agent(
         # Extract result
         success = False
         content = "Task not completed"
-        
+        videopath = agent.videopath
         if result and result.history and len(result.history) > 0:
             last_item = result.history[-1]
             if last_item.result and len(last_item.result) > 0:
@@ -176,7 +181,8 @@ async def run_agent(
             task=request.task,
             result=content,
             success=success,
-            steps_executed=len(result.history) if result and result.history else 0
+            steps_executed=len(result.history) if result and result.history else 0,
+            videopath=videopath
         )
         
     except Exception as e:

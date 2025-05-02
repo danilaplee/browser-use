@@ -139,6 +139,8 @@ ENV PLAYWRIGHT_BROWSERS_PATH=/usr/local/share/playwright
 RUN playwright install --with-deps chromium firefox webkit
 RUN playwright install-deps
 
+RUN apt-get install xauth -y
+
 # ensure correct permissions for /tmp/.X11-unix to prevent Xvfb from issuing warnings
 RUN mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
 
