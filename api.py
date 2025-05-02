@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from database import get_db, Task, SessionLocal
 from logging_config import setup_logging, log_info, log_error
 from browser import BrowserManager
+from settings import TaskRequest
 import aiohttp
 import traceback
 import os
@@ -19,6 +20,7 @@ logger = logging.getLogger('browser-use.api')
 
 router = APIRouter(prefix="/api/v1")
 browser_manager = BrowserManager()
+
 
 # System settings
 MAX_CONCURRENT_TASKS = 2  # Will be adjusted dynamically based on resources
@@ -33,27 +35,6 @@ class LLMConfig(BaseModel):
     provider: str
     model_name: str
     temperature: float = 0.0
-
-    model_config = {
-        "from_attributes": True
-    }
-
-class BrowserConfig(BaseModel):
-    headless: bool = True
-    disable_security: bool = True
-    extra_chromium_args: List[str] = []
-
-    model_config = {
-        "from_attributes": True
-    }
-
-class TaskRequest(BaseModel):
-    task: str
-    llm_config: LLMConfig
-    browser_config: Optional[BrowserConfig] = None
-    max_steps: int = 20
-    use_vision: bool = True
-    priority: float = 0.0
 
     model_config = {
         "from_attributes": True
@@ -157,28 +138,18 @@ async def execute_task(task_id: int, task: str, config: Dict[str, Any], db: Sess
             db_task.started_at = datetime.utcnow()
             db.commit()
 
-        # Configure browser
-        browser_config = BrowserConfig(
-            headless=config.get("browser_config", {}).get("headless", True),
-            disable_security=config.get("browser_config", {}).get("disable_security", True),
-            extra_chromium_args=config.get("browser_config", {}).get("extra_chromium_args", [])
-        )
-
         # Execute task
         result = await browser_manager.execute_task(
             task=task,
-            config={
-                "llm_config": config.get("llm_config", {}),
-                "browser_config": browser_config.dict(),
-                "max_steps": config.get("max_steps", 20),
-                "use_vision": config.get("use_vision", True)
-            }
+            config=config
         )
 
         # Update status to completed
         if db_task:
             db_task.status = "completed"
-            db_task.result = json.dumps(result)
+            db_task.result = json.dumps({
+                "videopath":result.videopath
+            })
             db_task.completed_at = datetime.utcnow()
             db.commit()
 
@@ -187,6 +158,9 @@ async def execute_task(task_id: int, task: str, config: Dict[str, Any], db: Sess
         if db_task:
             db_task.status = "failed"
             db_task.error = str(e)
+            db_task.result = json.dumps({
+                "videopath":result.videopath
+            })
             db_task.completed_at = datetime.utcnow()
             db.commit()
         await send_error_to_webhook(str(e), "execute_task", task_id)
@@ -284,10 +258,6 @@ asyncio.create_task(collect_metrics_periodically())
 async def run_task(request: TaskRequest):
     """Execute a new automation task"""
     try:
-        # Check if BrowserManager is initialized
-        if not browser_manager.browser:
-            await browser_manager.start()
-            log_info(logger, "BrowserManager initialized in /run endpoint")
 
         # Create new task in database
         with get_db() as db:
@@ -300,7 +270,6 @@ async def run_task(request: TaskRequest):
                     "use_vision": request.use_vision
                 }),
                 status="pending",
-                priority=request.priority,
                 created_at=datetime.utcnow()
             )
             db.add(db_task)
