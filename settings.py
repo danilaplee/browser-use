@@ -6,6 +6,7 @@ from typing import Optional, Dict, Any, List
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from langchain_openai import ChatOpenAI, AzureChatOpenAI
+from langchain_ollama import ChatOllama
 from pydantic import SecretStr
 from fastapi import HTTPException
 from logging_config import setup_logging, log_info, log_error, log_debug, log_warning
@@ -27,6 +28,7 @@ class ModelConfig(BaseModel):
     azure_endpoint: Optional[str] = Field(None, description="Endpoint for Azure OpenAI (if provider=azure)")
     azure_api_version: Optional[str] = Field(None, description="Azure OpenAI API version (if provider=azure)")
     temperature: float = Field(0.0, description="Generation temperature (0.0 to 1.0)")
+    base_url: Optional[str] = Field(..., description="api base url")
 
 
 # Configurações do banco de dados
@@ -95,6 +97,10 @@ def get_llm(model_config: ModelConfig):
                 azure_endpoint=model_config.azure_endpoint or os.getenv("AZURE_OPENAI_ENDPOINT", ""),
                 api_version=model_config.azure_api_version or "2024-10-21"
             )
+        elif provider == "ollama":
+            return ChatOllama(
+                model=model_config.model_name
+            ) 
         else:
             raise ValueError(f"Unsupported provider: {provider}")
     except Exception as e:

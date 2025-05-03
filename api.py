@@ -148,7 +148,11 @@ async def execute_task(task_id: int, task: str, config: Dict[str, Any], db: Sess
         if db_task:
             db_task.status = "completed"
             db_task.result = json.dumps({
-                "videopath":result.videopath
+                "videopath":result.videopath,
+                "result":result.result,
+                "task":result.task,
+                "steps_executed":result.steps_executed,
+                "success":result.success
             })
             db_task.completed_at = datetime.utcnow()
             db.commit()
