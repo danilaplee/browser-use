@@ -37,7 +37,7 @@ services:
       - RESOLUTION_WIDTH=1920
       - RESOLUTION_HEIGHT=1080
     ports:
-      - "9000:8000"
+      - "9000:9000"
     volumes:
       - ./videos:/app/videos/
     # post_start:

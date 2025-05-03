@@ -163,7 +163,7 @@ RUN chown -R appuser:appuser /app
 USER appuser
 
 # Expose port
-EXPOSE 8000
+EXPOSE 9000
 
 # Command to start the application
 CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
