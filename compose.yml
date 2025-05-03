@@ -17,7 +17,7 @@ services:
   browser:
     depends_on:
       - db
-    image: browseruse/browser-use
+    image: browseruse/browser-use:pr-2
     environment:
       - ERROR_WEBHOOK_URL=http://localhost:3000
       - NOTIFY_WEBHOOK_URL=http://localhost:3000
@@ -52,9 +52,9 @@ services:
   server:
     depends_on:
       - browser
-    image: nginx:alpine
+    image: joseluisq/static-web-server
     volumes:
-      - ./videos:/usr/share/nginx/html/app/videos/
+      - ./videos:/public/app/videos/
     networks:
       - default
     ports:
