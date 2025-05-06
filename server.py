@@ -77,7 +77,7 @@ async def run_agent(
         browser = Browser(config=browser_config)
         tool_calling_method = "auto"
         if "deepseek-r1" in request.llm_config.model_name:
-            tool_calling_method = "raw"
+            tool_calling_method = "json_mode"
 
         # Initialize and run agent
         agent = Agent(

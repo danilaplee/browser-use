@@ -59,7 +59,7 @@ class BrowserManager:
             
             tool_calling_method = "auto"
             if "deepseek-r1" in llm_config.model_name:
-                tool_calling_method = "raw"
+                tool_calling_method = "json_mode"
             # Initialize and run agent
             agent = Agent(
                 task=task, 
