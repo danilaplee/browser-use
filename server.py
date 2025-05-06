@@ -85,7 +85,8 @@ async def run_agent(
             generate_gif=request.generate_gif,
             max_failures=request.max_failures,
             memory_interval=request.memory_interval,
-            planner_interval=request.planner_interval
+            planner_interval=request.planner_interval,
+            tool_calling_method="json_schema"
         )
         
         result = await agent.run(max_steps=request.max_steps)
