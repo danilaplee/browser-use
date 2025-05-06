@@ -19,6 +19,7 @@ services:
       - db
     image: browseruse/browser-use:pr-3
     environment:
+      # - OLLAMA_HOST=http://host.docker.internal:11434
       - OLLAMA_HOST=${OLLAMA_HOST}
       - ERROR_WEBHOOK_URL=http://localhost:3000
       - NOTIFY_WEBHOOK_URL=http://localhost:3000
@@ -36,8 +37,9 @@ services:
       - CHROME_PERSISTENT_SESSION=true
       - RESOLUTION_WIDTH=1920
       - RESOLUTION_HEIGHT=1080
+      - APP_PORT=9000
     ports:
-      - "9000:9000"
+      - "9000:8000"
     volumes:
       - ./videos:/app/videos/
     # post_start:
