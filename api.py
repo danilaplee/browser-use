@@ -130,6 +130,7 @@ def calculate_max_tasks():
 
 # Function to execute a task
 async def execute_task(task_id: int, task: str, config: Dict[str, Any], db: Session):
+    result = None
     try:
         # Update status to running
         db_task = db.query(Task).filter(Task.id == task_id).first()
