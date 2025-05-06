@@ -29,7 +29,7 @@ class ModelConfig(BaseModel):
     api_key: Optional[str] = Field(None, description="API key for the provider (if needed)")
     azure_endpoint: Optional[str] = Field(None, description="Endpoint for Azure OpenAI (if provider=azure)")
     azure_api_version: Optional[str] = Field(None, description="Azure OpenAI API version (if provider=azure)")
-    temperature: float = Field(0.0, description="Generation temperature (0.0 to 1.0)")
+    temperature: float = Field(0.5, description="Generation temperature (0.0 to 1.0)")
     base_url: Optional[str] = Field(None, description="api base url")
 
 
