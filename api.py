@@ -130,6 +130,7 @@ def calculate_max_tasks():
 
 # Function to execute a task
 async def execute_task(task_id: int, task: str, config: Dict[str, Any], db: Session):
+    result = None
     try:
         # Update status to running
         db_task = db.query(Task).filter(Task.id == task_id).first()
@@ -148,7 +149,11 @@ async def execute_task(task_id: int, task: str, config: Dict[str, Any], db: Sess
         if db_task:
             db_task.status = "completed"
             db_task.result = json.dumps({
-                "videopath":result.videopath
+                "videopath":result.videopath,
+                "result":result.result,
+                "task":result.task,
+                "steps_executed":result.steps_executed,
+                "success":result.success
             })
             db_task.completed_at = datetime.utcnow()
             db.commit()
@@ -158,9 +163,12 @@ async def execute_task(task_id: int, task: str, config: Dict[str, Any], db: Sess
         if db_task:
             db_task.status = "failed"
             db_task.error = str(e)
-            db_task.result = json.dumps({
-                "videopath":result.videopath
-            })
+            if result != None : 
+                db_task.result = json.dumps({
+                    "videopath":result.videopath
+                })
+            else : 
+                db_task.result = json.dumps({})
             db_task.completed_at = datetime.utcnow()
             db.commit()
         await send_error_to_webhook(str(e), "execute_task", task_id)
