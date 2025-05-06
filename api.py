@@ -162,9 +162,12 @@ async def execute_task(task_id: int, task: str, config: Dict[str, Any], db: Sess
         if db_task:
             db_task.status = "failed"
             db_task.error = str(e)
-            db_task.result = json.dumps({
-                "videopath":result.videopath
-            })
+            if result != None : 
+                db_task.result = json.dumps({
+                    "videopath":result.videopath
+                })
+            else : 
+                db_task.result = json.dumps({})
             db_task.completed_at = datetime.utcnow()
             db.commit()
         await send_error_to_webhook(str(e), "execute_task", task_id)
