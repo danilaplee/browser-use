@@ -75,7 +75,10 @@ async def run_agent(
         
         # Initialize browser
         browser = Browser(config=browser_config)
-        
+        tool_calling_method = "auto"
+        if "deepseek-r1" in request.llm_config.model_name:
+            tool_calling_method = "json_mode"
+
         # Initialize and run agent
         agent = Agent(
             task=request.task, 
@@ -86,7 +89,7 @@ async def run_agent(
             max_failures=request.max_failures,
             memory_interval=request.memory_interval,
             planner_interval=request.planner_interval,
-            tool_calling_method="json_mode"
+            tool_calling_method=tool_calling_method
         )
         
         result = await agent.run(max_steps=request.max_steps)
