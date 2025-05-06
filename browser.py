@@ -57,6 +57,9 @@ class BrowserManager:
             # Initialize browser
             browser = Browser(config=browser_config)
             
+            tool_calling_method = "auto"
+            if "deepseek-r1" in llm_config.model_name:
+                tool_calling_method = "json_mode"
             # Initialize and run agent
             agent = Agent(
                 task=task, 
@@ -65,7 +68,8 @@ class BrowserManager:
                 max_failures=config.get("max_failures", 5),
                 use_vision=config.get("use_vision", True),
                 memory_interval=config.get("memory_interval", 10),
-                planner_interval=config.get("planner_interval", 1)
+                planner_interval=config.get("planner_interval", 1),
+                tool_calling_method=tool_calling_method
             )
             
             result = await agent.run(max_steps=config.get("max_steps", 5))
