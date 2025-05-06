@@ -97,7 +97,7 @@ def get_llm(model_config: ModelConfig):
             )
         elif provider == "ollama":
             if "deepseek-r1" in model_config.model_name :
-                logger.debug("initializing special provider for ollama deepseek-r1")
+                log_info(logger, "initializing special provider for ollama deepseek-r1")
                 return DeepSeekR1ChatOllama(
                     model=model_config.model_name,
                     temperature=model_config.temperature,
