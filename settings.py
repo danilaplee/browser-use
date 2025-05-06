@@ -11,7 +11,6 @@ from pydantic import SecretStr
 from fastapi import HTTPException
 from logging_config import setup_logging, log_info, log_error, log_debug, log_warning
 from langchain_core.messages import BaseMessage, AIMessage
-from langchain_ollama import ChatOllama
 from langchain_core.runnables import RunnableConfig
 
 # Logging configuration
