@@ -17,7 +17,7 @@ services:
   browser:
     depends_on:
       - db
-    image: browseruser/browser-user:pr-3
+    image: browseruser/browser-user
     environment:
       # - OLLAMA_HOST=http://host.docker.internal:11434
       - OLLAMA_HOST=${OLLAMA_HOST}
