@@ -2,14 +2,14 @@ import os
 import logging
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from typing import Optional, Dict, Any, List
+from typing import Optional, Any, List
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from langchain_openai import ChatOpenAI, AzureChatOpenAI
 from langchain_ollama import ChatOllama
 from pydantic import SecretStr
 from fastapi import HTTPException
-from logging_config import setup_logging, log_info, log_error, log_debug, log_warning
+from logging_config import log_info, log_error
 from langchain_core.messages import BaseMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
 
@@ -46,6 +46,14 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
 
 BROWSER_HEADLESS = os.getenv("BROWSER_HEADLESS", "True").lower() == "true"
 BROWSER_TIMEOUT = int(os.getenv("BROWSER_TIMEOUT", "30000")) 
+
+# Webhook URLs
+ERROR_WEBHOOK_URL = os.getenv("ERROR_WEBHOOK_URL","https://vrautomatize-n8n.snrhk1.easypanel.host/webhook/browser-use-vra-handler")
+NOTIFY_WEBHOOK_URL = os.getenv("NOTIFY_WEBHOOK_URL","https://vrautomatize-n8n.snrhk1.easypanel.host/webhook/notify-run")
+METRICS_WEBHOOK_URL = os.getenv("METRICS_WEBHOOK_URL","https://vrautomatize-n8n.snrhk1.easypanel.host/webhook/status")
+# System settings
+MAX_CONCURRENT_TASKS = 2  # Will be adjusted dynamically based on resources
+MAX_QUEUE_SIZE = 10
 
 class TaskRequest(BaseModel):
     task: str

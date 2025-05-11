@@ -26,6 +26,9 @@ class MetricsCollector:
             "metrics": dict(self.metrics)
         }
 
+async def onStepEnd(self: Agent): 
+    log_info(logger, "step_end", self.state)
+
 
 class BrowserManager:
     def __init__(self):
@@ -72,7 +75,9 @@ class BrowserManager:
                 tool_calling_method=tool_calling_method
             )
             
-            result = await agent.run(max_steps=config.get("max_steps", 5))
+            result = await agent.run(max_steps=config.get("max_steps", 5), 
+                                     on_step_start=None,
+                                     on_step_end=onStepEnd)
             
             # Extract result
             success = False

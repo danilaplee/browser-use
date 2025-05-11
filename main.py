@@ -12,20 +12,21 @@ from queue import PriorityQueue
 import threading
 import logging
 import uvicorn
-from logging_config import setup_logging, log_info, log_error, log_debug, log_warning
+from logging_config import setup_logging, log_info, log_error
 
 from config import settings
 from database import get_db
-from models import Task, Metric, Base, BrowserSession
+from models import Task, Base
 from browser import BrowserManager
-from schemas import TaskCreate, TaskResponse, TaskUpdate, BrowserSessionCreate, BrowserSessionResponse
+from schemas import TaskCreate, TaskResponse, TaskUpdate,  BrowserSessionResponse
 from crud import (
     create_task, get_tasks, get_task, update_task, delete_task,
-    create_browser_session, get_browser_sessions, get_browser_session,
+    get_browser_sessions, get_browser_session,
     get_browser_sessions_by_task
 )
 from notifications import webhook_manager
-from api import collect_metrics_periodically, router as api_router
+from api import router as api_router
+from metrics import collect_metrics_periodically
 
 # Logging configuration
 logger = logging.getLogger('browser-use.main')
