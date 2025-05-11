@@ -37,7 +37,7 @@ jobs:
           id: meta
           uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
           with:
-            images: browseruse/browser-use
+            images: browseruser/browser-use
 
         - name: Build and push Docker image
           id: push
@@ -49,5 +49,5 @@ jobs:
             push: true
             tags: ${{ steps.meta.outputs.tags }}
             labels: ${{ steps.meta.outputs.labels }}
-            cache-from: type=registry,ref=browseruse/browser-use:buildcache
-            cache-to: type=registry,ref=browseruse/browser-use:buildcache,mode=max
+            cache-from: type=registry,ref=browseruser/browser-user:buildcache
+            cache-to: type=registry,ref=browseruser/browser-user:buildcache,mode=max
