@@ -2,17 +2,19 @@ import os
 import logging
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from typing import Optional, Dict, Any, List
+from typing import Optional, Any, List
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from langchain_openai import ChatOpenAI, AzureChatOpenAI
 from langchain_ollama import ChatOllama
 from pydantic import SecretStr
 from fastapi import HTTPException
-from logging_config import setup_logging, log_info, log_error, log_debug, log_warning
+from logging_config import log_info, log_error
 from langchain_core.messages import BaseMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
-
+from langchain_google_genai import ChatGoogleGenerativeAI
+from browser_use.browser.browser import ProxySettings
+from browser_use import AgentHistoryList
 # Logging configuration
 logger = logging.getLogger('browser-use.settings')
 load_dotenv()
@@ -22,6 +24,7 @@ class BrowserConfigModel(BaseModel):
     headless: bool = True
     disable_security: bool = True
     extra_chromium_args: List[str] = []
+    proxy: Optional[ProxySettings] = None
 
 class ModelConfig(BaseModel):
     provider: str = Field(..., description="Model provider: openai, azure")
@@ -47,10 +50,23 @@ OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
 BROWSER_HEADLESS = os.getenv("BROWSER_HEADLESS", "True").lower() == "true"
 BROWSER_TIMEOUT = int(os.getenv("BROWSER_TIMEOUT", "30000")) 
 
+# Webhook URLs
+ERROR_WEBHOOK_URL = os.getenv("ERROR_WEBHOOK_URL","http://localhost:3000")
+NOTIFY_WEBHOOK_URL = os.getenv("NOTIFY_WEBHOOK_URL","http://localhost:3000")
+METRICS_WEBHOOK_URL = os.getenv("METRICS_WEBHOOK_URL","http://localhost:3000")
+# System settings
+MAX_CONCURRENT_TASKS = int(os.getenv("MAX_CONCURRENT_TASKS","2"))  # Will be adjusted dynamically based on resources
+MAX_QUEUE_SIZE = int(os.getenv("MAX_QUEUE_SIZE","2"))
+
 class TaskRequest(BaseModel):
     task: str
     llm_config: ModelConfig
     browser_config: Optional[BrowserConfigModel] = None
+    history: Optional[Any] = None
+    run_history: Optional[bool] = False
+    max_retries: Optional[int] = 3
+    skip_failures: Optional[bool] = False
+    delay_between_actions: Optional[float] = None
     max_steps: int = 20
     use_vision: bool = True
     generate_gif: bool = False
@@ -86,6 +102,11 @@ def get_llm(model_config: ModelConfig):
                 base_url='https://api.deepseek.com/v1',
                 model=model_config.model_name or 'deepseek-chat',
                 api_key=model_config.api_key or os.getenv("DEEPSEEK_API_KEY"),
+            )
+        elif provider == "google":
+            return ChatGoogleGenerativeAI(
+                model=model_config.model_name or 'gemini-2.5-flash',
+                api_key=model_config.api_key or os.getenv("GOOGLE_API_KEY"),
             )
         elif provider == "azure":
             return AzureChatOpenAI(

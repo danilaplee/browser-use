@@ -1,13 +1,11 @@
 import os
 import logging
-from typing import Optional, Dict, Any, List
-from fastapi import FastAPI, HTTPException, Body, BackgroundTasks, Depends
+from fastapi import FastAPI, HTTPException, Body, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
 from dotenv import load_dotenv
-from api import router, collect_metrics_periodically
-from database import engine, Base, get_db, init_db
-from logging_config import setup_logging, log_info, log_error, log_debug, log_warning
+from api import router
+from database import get_db, init_db
+from logging_config import log_info, log_error, log_debug, log_warning
 
 from browser_use import Agent, BrowserConfig, Browser
 from settings import get_llm, AgentResponse, TaskRequest

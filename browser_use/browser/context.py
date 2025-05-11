@@ -450,7 +450,7 @@ class BrowserContext:
 				bypass_csp=self.config.disable_security,
 				ignore_https_errors=self.config.disable_security,
 				record_video_dir="videos/",
-				record_video_size={"width": 1280, "height": 720},
+				record_video_size={"width": 1920, "height": 1080},
 				locale=self.config.locale,
 				http_credentials=self.config.http_credentials,
 				is_mobile=self.config.is_mobile,
