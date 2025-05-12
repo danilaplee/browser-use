@@ -18,6 +18,7 @@ services:
     restart: on-failure
     depends_on:
       - db
+    # scale: 2
     image: browseruser/browser-user:pr-4
     environment:
       # - OLLAMA_HOST=http://host.docker.internal:11434

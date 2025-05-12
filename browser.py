@@ -2,10 +2,12 @@ import logging
 from typing import Dict, Any
 from datetime import datetime
 import time
+import json
 from collections import defaultdict
 from logging_config import setup_logging, log_info, log_error, log_debug, log_warning
 from settings import get_llm, AgentResponse, ModelConfig
-from browser_use import Agent, BrowserConfig, Browser
+from browser_use import Agent, BrowserConfig, Browser, AgentHistoryList
+# from browser_use.agent.views import AgentHistory
 # Logging configuration
 logger = logging.getLogger('browser-use.browser')
 
@@ -26,8 +28,6 @@ class MetricsCollector:
             "metrics": dict(self.metrics)
         }
 
-async def onStepEnd(self: Agent): 
-    log_info(logger, "step_end", self.state)
 
 
 class BrowserManager:
@@ -38,7 +38,7 @@ class BrowserManager:
         log_info(logger, "BrowserManager initialized")
         self.metrics_collector = MetricsCollector()
 
-    async def execute_task(self, task: str, config: Dict[str, Any]) -> AgentResponse:
+    async def execute_task(self, task: str, config: Dict[str, Any], task_id: int) -> AgentResponse:
         """Execute an automation task"""
         
         try:
@@ -50,12 +50,13 @@ class BrowserManager:
                 temperature=config.get("llm_config", {}).get("temperature", 0.5)
             )
             llm = get_llm(llm_config)
-            
+            bconfig = config.get("browser_config", {})
             # Configure browser
             browser_config = BrowserConfig(
-                headless=config.get("browser_config", {}).get("headless", True),
-                disable_security=config.get("browser_config", {}).get("disable_security", True),
-                extra_chromium_args=config.get("browser_config", {}).get("extra_chromium_args", [])
+                headless=bconfig.get("headless", True),
+                disable_security=bconfig.get("disable_security", True),
+                extra_chromium_args=bconfig.get("extra_chromium_args", []),
+                proxy=bconfig.get("proxy", None)
             )
             # Initialize browser
             browser = Browser(config=browser_config)
@@ -75,6 +76,10 @@ class BrowserManager:
                 tool_calling_method=tool_calling_method
             )
             
+            async def onStepEnd(self: Agent): 
+                history_path = f'./history/{task_id}.json'
+                self.save_history(history_path)
+
             result = await agent.run(max_steps=config.get("max_steps", 5), 
                                      on_step_start=None,
                                      on_step_end=onStepEnd)

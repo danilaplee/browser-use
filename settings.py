@@ -12,7 +12,7 @@ from fastapi import HTTPException
 from logging_config import log_info, log_error
 from langchain_core.messages import BaseMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
-
+from browser_use.browser.browser import ProxySettings
 # Logging configuration
 logger = logging.getLogger('browser-use.settings')
 load_dotenv()
@@ -22,6 +22,7 @@ class BrowserConfigModel(BaseModel):
     headless: bool = True
     disable_security: bool = True
     extra_chromium_args: List[str] = []
+    proxy: Optional[ProxySettings]
 
 class ModelConfig(BaseModel):
     provider: str = Field(..., description="Model provider: openai, azure")
@@ -48,9 +49,9 @@ BROWSER_HEADLESS = os.getenv("BROWSER_HEADLESS", "True").lower() == "true"
 BROWSER_TIMEOUT = int(os.getenv("BROWSER_TIMEOUT", "30000")) 
 
 # Webhook URLs
-ERROR_WEBHOOK_URL = os.getenv("ERROR_WEBHOOK_URL","https://vrautomatize-n8n.snrhk1.easypanel.host/webhook/browser-use-vra-handler")
-NOTIFY_WEBHOOK_URL = os.getenv("NOTIFY_WEBHOOK_URL","https://vrautomatize-n8n.snrhk1.easypanel.host/webhook/notify-run")
-METRICS_WEBHOOK_URL = os.getenv("METRICS_WEBHOOK_URL","https://vrautomatize-n8n.snrhk1.easypanel.host/webhook/status")
+ERROR_WEBHOOK_URL = os.getenv("ERROR_WEBHOOK_URL","http://localhost:3000")
+NOTIFY_WEBHOOK_URL = os.getenv("NOTIFY_WEBHOOK_URL","http://localhost:3000")
+METRICS_WEBHOOK_URL = os.getenv("METRICS_WEBHOOK_URL","http://localhost:3000")
 # System settings
 MAX_CONCURRENT_TASKS = 2  # Will be adjusted dynamically based on resources
 MAX_QUEUE_SIZE = 10

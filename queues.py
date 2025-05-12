@@ -33,7 +33,8 @@ async def execute_task(task_id: int, task: str, config: Dict[str, Any], db: Sess
         # Execute task
         result = await browser_manager.execute_task(
             task=task,
-            config=config
+            config=config,
+            task_id=task_id
         )
 
         # Update status to completed
@@ -86,6 +87,7 @@ async def process_queue():
             if(len(pending) == 0):
                 await asyncio.sleep(10)
                 loop.create_task(process_queue())
+                db.close()
                 return;    
             
             for task in pending:
@@ -104,11 +106,12 @@ async def process_queue():
                     log_error(logger, f"Error creating task: {str(e)}")
                     await send_error_to_webhook(str(e), "process_queue", task_id)
                     running_tasks.remove(task_id)
-                    db.close()
+                db.close()
                 
         except Exception as e:
             log_error(logger, f"Error processing queue: {str(e)}")
             await send_error_to_webhook(str(e), "process_queue")
+            db.close()
 
         await asyncio.sleep(1)
         loop.create_task(process_queue())    
