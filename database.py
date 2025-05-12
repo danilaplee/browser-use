@@ -158,6 +158,15 @@ def get_tasks(db: Session, skip: int = 0, limit: int = 100) -> list[Task]:
         }, exc_info=True)
         raise
 
+def get_pending_tasks(db: Session, skip: int = 0, limit: int = 100) -> list[Task]:
+    try:
+        return db.query(Task).where(Task.status == "pending").offset(skip).limit(limit).all()
+    except Exception as e:
+        log_error(logger, "Error listing tasks", {
+            "error": str(e)
+        }, exc_info=True)
+        raise
+
 # Functions for Session
 def get_sessions(db: Session, skip: int = 0, limit: int = 100) -> list[Session]:
     """List all sessions with pagination"""

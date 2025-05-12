@@ -157,13 +157,13 @@ WORKDIR /app
 COPY . .
 
 # Set permissions
-RUN chown -R appuser:appuser /app
+# RUN chown -R appuser:appuser /app
 
-# Switch to non-root user
-USER appuser
+# # Switch to non-root user
+# USER appuser
 
 # Expose port
 EXPOSE 9000
 
 # Command to start the application
-CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["./start.sh"]
