@@ -157,10 +157,10 @@ WORKDIR /app
 COPY . .
 
 # Set permissions
-RUN chown -R appuser:appuser /app
+# RUN chown -R appuser:appuser /app
 
-# Switch to non-root user
-USER appuser
+# # Switch to non-root user
+# USER appuser
 
 # Expose port
 EXPOSE 9000

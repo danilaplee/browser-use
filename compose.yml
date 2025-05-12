@@ -42,6 +42,7 @@ services:
       - IS_WORKER=true
     volumes:
       - ./videos:/app/videos/
+      - ./history:/app/history/
     # post_start:
       # - command:  /usr/bin/xvfb-run --listen-tcp --server-args="-screen 0 ${GEOMETRY} -fbdir /var/tmp -listen tcp -noreset -ac +extension RANDR" /usr/bin/fluxbox -display ${DISPLAY}
         # user: root
@@ -87,6 +88,7 @@ services:
     image: joseluisq/static-web-server
     volumes:
       - ./videos:/public/app/videos/
+      - ./history:/public/app/history/
     networks:
       - default
     ports:

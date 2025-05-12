@@ -63,7 +63,12 @@ async def run_task(request: TaskRequest):
                     "llm_config": request.llm_config.model_dump(),
                     "browser_config": request.browser_config.model_dump() if request.browser_config else {},
                     "max_steps": request.max_steps,
-                    "use_vision": request.use_vision
+                    "use_vision": request.use_vision,
+                    "history": request.history,
+                    "run_history": request.run_history,
+                    "max_retries":request.max_retries,
+                    "delay_between_actions":request.delay_between_actions,
+                    "skip_failures":request.skip_failures,
                 }),
                 status="pending",
                 created_at=datetime.utcnow()

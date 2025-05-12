@@ -13,6 +13,7 @@ from logging_config import log_info, log_error
 from langchain_core.messages import BaseMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
 from browser_use.browser.browser import ProxySettings
+from browser_use import AgentHistoryList
 # Logging configuration
 logger = logging.getLogger('browser-use.settings')
 load_dotenv()
@@ -22,7 +23,7 @@ class BrowserConfigModel(BaseModel):
     headless: bool = True
     disable_security: bool = True
     extra_chromium_args: List[str] = []
-    proxy: Optional[ProxySettings]
+    proxy: Optional[ProxySettings] = None
 
 class ModelConfig(BaseModel):
     provider: str = Field(..., description="Model provider: openai, azure")
@@ -53,13 +54,18 @@ ERROR_WEBHOOK_URL = os.getenv("ERROR_WEBHOOK_URL","http://localhost:3000")
 NOTIFY_WEBHOOK_URL = os.getenv("NOTIFY_WEBHOOK_URL","http://localhost:3000")
 METRICS_WEBHOOK_URL = os.getenv("METRICS_WEBHOOK_URL","http://localhost:3000")
 # System settings
-MAX_CONCURRENT_TASKS = 2  # Will be adjusted dynamically based on resources
-MAX_QUEUE_SIZE = 10
+MAX_CONCURRENT_TASKS = int(os.getenv("MAX_CONCURRENT_TASKS","2"))  # Will be adjusted dynamically based on resources
+MAX_QUEUE_SIZE = int(os.getenv("MAX_QUEUE_SIZE","2"))
 
 class TaskRequest(BaseModel):
     task: str
     llm_config: ModelConfig
     browser_config: Optional[BrowserConfigModel] = None
+    history: Optional[Any] = None
+    run_history: Optional[bool] = False
+    max_retries: Optional[int] = 3
+    skip_failures: Optional[bool] = False
+    delay_between_actions: Optional[float] = None
     max_steps: int = 20
     use_vision: bool = True
     generate_gif: bool = False

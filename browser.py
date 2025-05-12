@@ -51,6 +51,8 @@ class BrowserManager:
             )
             llm = get_llm(llm_config)
             bconfig = config.get("browser_config", {})
+            history = config.get("history", None)
+            run_history = config.get("run_history", False)
             # Configure browser
             browser_config = BrowserConfig(
                 headless=bconfig.get("headless", True),
@@ -76,33 +78,52 @@ class BrowserManager:
                 tool_calling_method=tool_calling_method
             )
             
-            async def onStepEnd(self: Agent): 
-                history_path = f'./history/{task_id}.json'
-                self.save_history(history_path)
-
-            result = await agent.run(max_steps=config.get("max_steps", 5), 
-                                     on_step_start=None,
-                                     on_step_end=onStepEnd)
-            
+            history_path = f'./history/{task_id}.json'
             # Extract result
             success = False
             content = "Task not completed"
+            steps_executed = 0
+
+            async def onStepEnd(self: Agent): 
+                self.save_history(history_path)
+
+            if run_history == True:
+                log_info(logger, f"TASK {task_id} run history {str(history)}")
+                with open(history_path, "w") as f:
+                    json.dump(history, f)
+                result = await agent.rerun_history(
+                    history=AgentHistoryList.load_from_file(history_path, agent.AgentOutput), 
+                    max_retries=config.get("max_retries", 3),
+                    skip_failures=config.get("skip_failures", False),
+                    delay_between_actions=config.get("delay_between_actions", 2.0)
+                )
+                last_item = result[-1]
+                success = last_item.success
+                steps_executed = len(result)
+                content = last_item.extracted_content
+                await (await browser.get_playwright_browser()).close()
+                
+            else:
+                log_info(logger, f"TASK {task_id} run ai")
+                result = await agent.run(max_steps=config.get("max_steps", 5), 
+                                     on_step_start=None,
+                                     on_step_end=onStepEnd)
+                if result and result.history and len(result.history) > 0:
+                    steps_executed = len(result.history)
+                    last_item = result.history[-1]
+                    if last_item.result and len(last_item.result) > 0:
+                        last_result = last_item.result[-1]
+                        content = last_result.extracted_content or "No content extracted"
+                        success = last_result.is_done
+                # Close browser after use
+                await browser.close()
             videopath = agent.videopath
-            if result and result.history and len(result.history) > 0:
-                last_item = result.history[-1]
-                if last_item.result and len(last_item.result) > 0:
-                    last_result = last_item.result[-1]
-                    content = last_result.extracted_content or "No content extracted"
-                    success = last_result.is_done
-            
-            # Close browser after use
-            await browser.close()
             
             return AgentResponse(
                 task=task,
                 result=content,
                 success=success,
-                steps_executed=len(result.history) if result and result.history else 0,
+                steps_executed=steps_executed,
                 videopath=videopath
             )
 
