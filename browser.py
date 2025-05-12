@@ -101,7 +101,7 @@ class BrowserManager:
                 success = last_item.success
                 steps_executed = len(result)
                 content = last_item.extracted_content
-                await (await browser.get_playwright_browser()).close()
+                # await (await browser.get_playwright_browser()).close()
                 
             else:
                 log_info(logger, f"TASK {task_id} run ai")
