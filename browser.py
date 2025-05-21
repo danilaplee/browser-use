@@ -87,7 +87,7 @@ class BrowserManager:
             async def onStepEnd(self: Agent): 
                 self.save_history(history_path)
 
-            if run_history == True:
+            if run_history:
                 log_info(logger, f"TASK {task_id} run history {str(history)}")
                 with open(history_path, "w") as f:
                     json.dump(history, f)

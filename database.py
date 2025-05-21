@@ -63,25 +63,6 @@ class Task(Base):
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
 
-class Metric(Base):
-    __tablename__ = "metrics"
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
-    value = Column(Float, nullable=False)
-    created_at = Column(DateTime, nullable=False)
-
-class Session(Base):
-    __tablename__ = "sessions"
-
-    id = Column(Integer, primary_key=True, index=True)
-    task_id = Column(Integer, nullable=False)
-    start_time = Column(DateTime, nullable=False)
-    end_time = Column(DateTime, nullable=True)
-    status = Column(String, nullable=False)
-    error = Column(String, nullable=True)
-    created_at = Column(DateTime, nullable=False)
-
 # Function to get database session
 @contextmanager
 def get_db():
@@ -170,40 +151,6 @@ def get_pending_tasks(db: Session, skip: int = 0, limit: int = 100) -> list[Task
         }, exc_info=True)
         raise
 
-# Functions for Session
-def get_sessions(db: Session, skip: int = 0, limit: int = 100) -> list[Session]:
-    """List all sessions with pagination"""
-    try:
-        result = db.query(Session).offset(skip).limit(limit).all()
-        return result
-    except Exception as e:
-        log_error(logger, "Error listing sessions", {
-            "error": str(e)
-        }, exc_info=True)
-        raise
-
-def get_session(db: Session, session_id: int) -> Session:
-    """Get a session by ID"""
-    try:
-        return db.query(Session).filter(Session.id == session_id).first()
-    except Exception as e:
-        log_error(logger, "Error getting session", {
-            "session_id": session_id,
-            "error": str(e)
-        }, exc_info=True)
-        raise
-
-def get_task_sessions(db: Session, task_id: int) -> list[Session]:
-    """Get all sessions for a task"""
-    try:
-        result = db.query(Session).filter(Session.task_id == task_id).all()
-        return result
-    except Exception as e:
-        log_error(logger, "Error getting task sessions", {
-            "task_id": task_id,
-            "error": str(e)
-        }, exc_info=True)
-        raise
 
 def delete_task(db: Session, task_id: int) -> bool:
     """Remove a task from database"""
