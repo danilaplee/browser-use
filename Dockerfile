@@ -134,6 +134,7 @@ RUN pip install --no-cache-dir \
 RUN pip install --no-cache-dir langchain==0.3.21
 RUN pip install --no-cache-dir langchain_core==0.3.49
 RUN pip install --no-cache-dir langchain-openai==0.3.11
+
 # Install Playwright browsers
 ENV PLAYWRIGHT_BROWSERS_PATH=/usr/local/share/playwright
 RUN playwright install --with-deps chromium firefox webkit
@@ -142,6 +143,7 @@ RUN playwright install-deps
 RUN apt-get install xauth -y
 
 RUN pip install --no-cache-dir langchain-ollama
+RUN pip install --no-cache-dir langchain_google_genai==2.1.4
 
 # ensure correct permissions for /tmp/.X11-unix to prevent Xvfb from issuing warnings
 RUN mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
@@ -157,13 +159,13 @@ WORKDIR /app
 COPY . .
 
 # Set permissions
-RUN chown -R appuser:appuser /app
+# RUN chown -R appuser:appuser /app
 
-# Switch to non-root user
-USER appuser
+# # Switch to non-root user
+# USER appuser
 
 # Expose port
 EXPOSE 9000
 
 # Command to start the application
-CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["./start.sh"]

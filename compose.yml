@@ -15,9 +15,41 @@ services:
     ports:
       - "127.0.0.1:5432:5432"
   browser:
+    restart: on-failure
     depends_on:
       - db
-    image: browseruser/browser-user
+    # scale: 2
+    image: browseruser/browser-user:pr-4
+    environment:
+      - OLLAMA_HOST=${OLLAMA_HOST}
+      - ERROR_WEBHOOK_URL=http://localhost:3000
+      - NOTIFY_WEBHOOK_URL=http://localhost:3000
+      - METRICS_WEBHOOK_URL=http://localhost:3000
+      - STATUS_WEBHOOK_URL=http://localhost:3000
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/browser-use
+      - PYTHONUNBUFFERED=1
+      - BROWSER_USE_LOGGING_LEVEL=info
+      - ANONYMIZED_TELEMETRY=false
+      - DISPLAY=:99
+      - RESOLUTION=1920x1080x24
+      - VNC_PASSWORD=vncpassword
+      - CHROME_PERSISTENT_SESSION=true
+      - RESOLUTION_WIDTH=1920
+      - RESOLUTION_HEIGHT=1080
+      - IS_WORKER=true
+    volumes:
+      - ./videos:/app/videos/
+      - ./history:/app/history/
+    init: true
+    networks:
+      - db-tier
+      - default
+  api:
+    depends_on:
+      - db
+    image: browseruser/browser-user:pr-4
     environment:
       # - OLLAMA_HOST=http://host.docker.internal:11434
       - OLLAMA_HOST=${OLLAMA_HOST}
@@ -39,16 +71,7 @@ services:
       - RESOLUTION_HEIGHT=1080
       - APP_PORT=9000
     ports:
-      - "9000:8000"
-    volumes:
-      - ./videos:/app/videos/
-    # post_start:
-      # - command:  /usr/bin/xvfb-run --listen-tcp --server-args="-screen 0 ${GEOMETRY} -fbdir /var/tmp -listen tcp -noreset -ac +extension RANDR" /usr/bin/fluxbox -display ${DISPLAY}
-        # user: root
-        # privileged: true
-        # environment:
-          # - GEOMETRY="1280""x""720""
-          # - FOO=BAR
+      - "9000:9000"
     networks:
       - db-tier
       - default
@@ -58,6 +81,7 @@ services:
     image: joseluisq/static-web-server
     volumes:
       - ./videos:/public/app/videos/
+      - ./history:/public/app/history/
     networks:
       - default
     ports:

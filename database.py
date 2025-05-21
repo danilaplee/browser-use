@@ -1,5 +1,6 @@
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, JSON, Float, TypeDecorator
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float, TypeDecorator
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 import os
 from dotenv import load_dotenv
 import logging
@@ -8,6 +9,7 @@ from datetime import datetime
 from sqlalchemy.sql import select
 from contextlib import contextmanager
 import json
+import uuid
 
 # Logging configuration
 logger = logging.getLogger('browser-use.database')
@@ -50,12 +52,13 @@ class JSONEncodedDict(TypeDecorator):
 class Task(Base):
     __tablename__ = "tasks"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     task = Column(String, nullable=False)
-    config = Column(JSONEncodedDict, nullable=True)  # Using JSONEncodedDict
+    config = Column(JSONB, nullable=True)  # Using JSONEncodedDict
     status = Column(String, nullable=False)
-    result = Column(JSONEncodedDict, nullable=True)  # Using JSONEncodedDict
+    result = Column(JSONB, nullable=True)  # Using JSONEncodedDict
     error = Column(String, nullable=True)
+    user_id = Column(String, nullable=True)
     created_at = Column(DateTime, nullable=False)
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
@@ -152,6 +155,15 @@ def update_task(db: Session, task_id: int, task_data: dict) -> Task:
 def get_tasks(db: Session, skip: int = 0, limit: int = 100) -> list[Task]:
     try:
         return db.query(Task).offset(skip).limit(limit).all()
+    except Exception as e:
+        log_error(logger, "Error listing tasks", {
+            "error": str(e)
+        }, exc_info=True)
+        raise
+
+def get_pending_tasks(db: Session, skip: int = 0, limit: int = 100) -> list[Task]:
+    try:
+        return db.query(Task).where(Task.status == "pending").offset(skip).limit(limit).all()
     except Exception as e:
         log_error(logger, "Error listing tasks", {
             "error": str(e)
